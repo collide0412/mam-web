@@ -37,6 +37,7 @@ const storeMock = vi.hoisted(() => ({
   setupIdentity: vi.fn(async () => ({ profileId: 'linh', pinHash: 'test' })),
   verifyIdentity: vi.fn(async () => true),
   clearIdentity: vi.fn(async () => undefined),
+  flushPendingSync: vi.fn(async () => undefined),
   getProfiles: vi.fn(async () => [{
     id: 'linh',
     name: 'Linh',

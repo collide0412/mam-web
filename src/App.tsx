@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { NavLink, Route, Routes } from 'react-router-dom'
-import { clearIdentity, getIdentity, getMealsForProfile, getProfiles, getSelectedProfileId, saveMeal, saveProfile, saveSelectedProfileId, setupIdentity, verifyIdentity } from './db/store'
+import { clearIdentity, flushPendingSync, getIdentity, getMealsForProfile, getProfiles, getSelectedProfileId, saveMeal, saveProfile, saveSelectedProfileId, setupIdentity, verifyIdentity } from './db/store'
 import { AddFoodPage } from './features/search/AddFoodPage'
 import { TodayPage } from './features/today/TodayPage'
 import { DiaryPage } from './features/diary/DiaryPage'
@@ -9,6 +9,9 @@ import { FoodDetailPage } from './features/food-detail/FoodDetailPage'
 import { RecommendPage } from './features/recommendations/RecommendPage'
 import { TogetherPage } from './features/together/TogetherPage'
 import type { MealEntry, Profile } from './types'
+import { firebaseEnabled } from './firebase'
+import { register, signIn } from './firebaseAuth'
+import { getCloudProfile } from './firebaseStore'
 
 const defaultProfile: Profile = {
   id: 'local-profile',
@@ -28,7 +31,10 @@ function IdentityGate({ onAuthenticated }: { onAuthenticated: () => void }) {
   const [hasIdentity, setHasIdentity] = useState(false)
   const [ready, setReady] = useState(false)
   const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
   const [pin, setPin] = useState('')
+  const [password, setPassword] = useState('')
+  const [cloudMode, setCloudMode] = useState<'signin' | 'register'>('signin')
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -43,7 +49,7 @@ function IdentityGate({ onAuthenticated }: { onAuthenticated: () => void }) {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError('')
-    if (!hasIdentity && name.trim().length < 2) {
+    if (!hasIdentity && (!firebaseEnabled || cloudMode === 'register') && name.trim().length < 2) {
       setError('Hãy nhập tên để cá nhân hóa trải nghiệm.')
       return
     }
@@ -52,7 +58,20 @@ function IdentityGate({ onAuthenticated }: { onAuthenticated: () => void }) {
       return
     }
 
-    if (hasIdentity) {
+    if (firebaseEnabled && !hasIdentity) {
+      if (!email || password.length < 6) {
+        setError('Email hợp lệ và mật khẩu cần có ít nhất 6 ký tự.')
+        return
+      }
+      try {
+        const user = cloudMode === 'register' ? await register(email, password) : await signIn(email, password)
+        const existingProfile = cloudMode === 'signin' ? await getCloudProfile(user.uid) : null
+        await setupIdentity(cloudMode === 'register' ? name : (user.displayName ?? email.split('@')[0]), pin, user.uid, existingProfile ?? undefined)
+      } catch {
+        setError('Không thể xác thực. Kiểm tra email, mật khẩu và Firebase configuration.')
+        return
+      }
+    } else if (hasIdentity) {
       if (!(await verifyIdentity(pin))) {
         setError('Mã mở khóa chưa đúng. Hãy thử lại.')
         return
@@ -71,7 +90,28 @@ function IdentityGate({ onAuthenticated }: { onAuthenticated: () => void }) {
         <h1 id="identity-title">{hasIdentity ? 'Chào bạn trở lại' : 'Bắt đầu không gian riêng của bạn'}</h1>
         <p className="identity-copy">Dữ liệu ăn uống được lưu trên thiết bị này và chỉ mở khi có mã của bạn.</p>
         <form onSubmit={(event) => void handleSubmit(event)}>
-          {!hasIdentity && (
+          {firebaseEnabled && !hasIdentity && (
+            <>
+              {cloudMode === 'register' && (
+                <label className="field-block">
+                  <span>Tên của bạn</span>
+                  <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Ví dụ: Mai" autoComplete="name" required />
+                </label>
+              )}
+              <label className="field-block">
+                <span>Email</span>
+                <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required />
+              </label>
+              <label className="field-block">
+                <span>Mật khẩu Firebase</span>
+                <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={cloudMode === 'register' ? 'new-password' : 'current-password'} required />
+              </label>
+              <button type="button" className="text-button" onClick={() => setCloudMode(cloudMode === 'register' ? 'signin' : 'register')}>
+                {cloudMode === 'register' ? 'Đã có tài khoản? Đăng nhập' : 'Tạo tài khoản mới'}
+              </button>
+            </>
+          )}
+          {!firebaseEnabled && !hasIdentity && (
             <label className="field-block">
               <span>Tên của bạn</span>
               <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Ví dụ: Mai" autoComplete="name" required />
@@ -130,7 +170,10 @@ function App() {
   }, [profile.language])
 
   useEffect(() => {
-    const handleOnline = () => setOffline(false)
+    const handleOnline = () => {
+      setOffline(false)
+      void flushPendingSync()
+    }
     const handleOffline = () => setOffline(true)
     window.addEventListener('online', handleOnline)
     window.addEventListener('offline', handleOffline)
@@ -139,6 +182,13 @@ function App() {
       window.removeEventListener('offline', handleOffline)
     }
   }, [])
+
+  useEffect(() => {
+    if (!identity) return
+    void flushPendingSync()
+    const retryTimer = window.setInterval(() => void flushPendingSync(), 30_000)
+    return () => window.clearInterval(retryTimer)
+  }, [identity])
 
   const handleAddMeal = async (payload: Omit<MealEntry, 'id' | 'profileId' | 'timestamp'> & { foodId: string }) => {
     const entry: MealEntry = {

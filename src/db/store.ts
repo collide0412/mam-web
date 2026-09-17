@@ -16,35 +16,14 @@ interface MamDB extends DBSchema {
 const DB_NAME = 'mam-web-db'
 const DB_VERSION = 1
 const SELECTED_PROFILE_KEY = 'mam-selected-profile-id'
+const IDENTITY_KEY = 'mam-identity-v1'
 
-export const defaultProfiles: Profile[] = [
-  {
-    id: 'linh',
-    name: 'Linh',
-    region: 'Hồ Chí Minh',
-    language: 'vi',
-    currency: 'VND',
-    calorieGoal: 1650,
-    proteinGoal: 90,
-    carbsGoal: 210,
-    fatGoal: 58,
-    allergens: ['hành'],
-    dietary: ['không cay'],
-  },
-  {
-    id: 'an',
-    name: 'An',
-    region: 'Đà Nẵng',
-    language: 'vi',
-    currency: 'VND',
-    calorieGoal: 1800,
-    proteinGoal: 95,
-    carbsGoal: 220,
-    fatGoal: 62,
-    allergens: [],
-    dietary: ['ít đường'],
-  },
-]
+export const defaultProfiles: Profile[] = []
+
+export type IdentityRecord = {
+  profileId: string
+  pinHash: string
+}
 
 export const dbPromise = openDB<MamDB>(DB_NAME, DB_VERSION, {
   upgrade(db) {
@@ -61,19 +40,14 @@ export const dbPromise = openDB<MamDB>(DB_NAME, DB_VERSION, {
 })
 
 export async function seedProfilesIfNeeded() {
-  const db = await dbPromise
-  const existing = await db.getAll('profiles')
-
-  if (existing.length === 0) {
-    for (const profile of defaultProfiles) {
-      await db.put('profiles', profile)
-    }
-  }
+  return dbPromise
 }
 
 export async function getProfiles(): Promise<Profile[]> {
   const db = await dbPromise
-  return db.getAll('profiles')
+  const profiles = await db.getAll('profiles')
+  if (await getIdentity()) return profiles
+  return profiles.filter((profile) => profile.id !== 'linh' && profile.id !== 'an')
 }
 
 export async function saveProfile(profile: Profile): Promise<void> {
@@ -92,6 +66,59 @@ export async function getSelectedProfileId(): Promise<string | null> {
 export async function saveSelectedProfileId(profileId: string): Promise<void> {
   if (typeof window !== 'undefined') {
     window.localStorage.setItem(SELECTED_PROFILE_KEY, profileId)
+  }
+}
+
+async function hashPin(pin: string): Promise<string> {
+  const bytes = new TextEncoder().encode(pin)
+  const digest = await crypto.subtle.digest('SHA-256', bytes)
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
+export async function getIdentity(): Promise<IdentityRecord | null> {
+  if (typeof window === 'undefined') return null
+
+  const stored = window.localStorage.getItem(IDENTITY_KEY)
+  if (!stored) return null
+
+  try {
+    return JSON.parse(stored) as IdentityRecord
+  } catch {
+    window.localStorage.removeItem(IDENTITY_KEY)
+    return null
+  }
+}
+
+export async function setupIdentity(name: string, pin: string): Promise<IdentityRecord> {
+  const profile: Profile = {
+    id: crypto.randomUUID(),
+    name: name.trim(),
+    region: 'Việt Nam',
+    language: 'vi',
+    currency: 'VND',
+    calorieGoal: 1650,
+    proteinGoal: 90,
+    carbsGoal: 210,
+    fatGoal: 58,
+    allergens: [],
+    dietary: [],
+  }
+
+  await saveProfile(profile)
+  await saveSelectedProfileId(profile.id)
+  const identity: IdentityRecord = { profileId: profile.id, pinHash: await hashPin(pin) }
+  window.localStorage.setItem(IDENTITY_KEY, JSON.stringify(identity))
+  return identity
+}
+
+export async function verifyIdentity(pin: string): Promise<boolean> {
+  const identity = await getIdentity()
+  return Boolean(identity && identity.pinHash === await hashPin(pin))
+}
+
+export async function clearIdentity(): Promise<void> {
+  if (typeof window !== 'undefined') {
+    window.localStorage.removeItem(IDENTITY_KEY)
   }
 }
 

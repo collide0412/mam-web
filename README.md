@@ -2,6 +2,10 @@
 
 Măm là PWA theo dõi calories, hoạt động local-first và có thể chạy offline. Dữ liệu hồ sơ và nhật ký được lưu trên thiết bị bằng IndexedDB.
 
+Ở lần mở đầu tiên, Măm yêu cầu tên hiển thị và mã mở khóa 6 chữ số. Những lần sau phải nhập đúng mã để mở ứng dụng; mã không được lưu dạng văn bản mà được lưu dưới dạng hash trong bộ nhớ cục bộ của thiết bị.
+
+Đây là cơ chế khóa riêng tư cho thiết bị, không phải hệ thống tài khoản đồng bộ giữa nhiều thiết bị. GitHub Pages chỉ chạy frontend tĩnh, vì vậy nếu cần đăng nhập email/OAuth, khôi phục tài khoản hoặc đồng bộ dữ liệu thật, cần tích hợp thêm backend xác thực như Supabase Auth + database.
+
 ## Phát triển cục bộ
 
 ```bash

@@ -93,6 +93,32 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .content-panel { flex: 1; }
 .page-shell { padding-top: 8px; }
 
+.identity-shell {
+  min-height: 100vh;
+  width: min(100% - 32px, 440px);
+  margin: 0 auto;
+  display: grid;
+  place-items: center;
+  padding: 24px 0;
+}
+
+.identity-card {
+  width: 100%;
+  padding: 28px 22px;
+  background: rgba(255, 253, 250, 0.92);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+}
+
+.identity-card .brand-mark { margin-bottom: 22px; }
+.identity-card h1 { margin: 0 0 10px; line-height: 1.15; }
+.identity-copy { color: var(--text-soft); margin: 0 0 22px; }
+.identity-card form { display: grid; gap: 16px; }
+.identity-card .primary-button { width: 100%; }
+.form-error { color: var(--danger); margin: -4px 0 0; font-size: 0.9rem; }
+.text-button { border: 0; background: transparent; color: var(--primary-strong); padding: 12px 4px; cursor: pointer; }
+
 .hero-card, .profile-card, .feature-card, .list-panel, .search-panel, .detail-panel {
   background: rgba(255, 253, 250, 0.8);
   border: 1px solid var(--border);

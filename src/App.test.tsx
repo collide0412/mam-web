@@ -33,6 +33,10 @@ const storeMock = vi.hoisted(() => ({
     },
   ],
   seedProfilesIfNeeded: vi.fn(async () => undefined),
+  getIdentity: vi.fn(async () => ({ profileId: 'linh' })),
+  setupIdentity: vi.fn(async () => ({ profileId: 'linh', pinHash: 'test' })),
+  verifyIdentity: vi.fn(async () => true),
+  clearIdentity: vi.fn(async () => undefined),
   getProfiles: vi.fn(async () => [{
     id: 'linh',
     name: 'Linh',

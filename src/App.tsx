@@ -88,7 +88,7 @@ function IdentityGate({ onAuthenticated }: { onAuthenticated: () => void }) {
         <div className="brand-mark" aria-hidden="true">M</div>
         <p className="eyebrow">Măm riêng tư</p>
         <h1 id="identity-title">{hasIdentity ? 'Chào bạn trở lại' : 'Bắt đầu không gian riêng của bạn'}</h1>
-        <p className="identity-copy">Dữ liệu ăn uống được lưu trên thiết bị này và chỉ mở khi có mã của bạn.</p>
+        <p className="identity-copy">Email và mật khẩu dùng để đồng bộ tài khoản. Mã khóa ứng dụng giúp mở Măm nhanh và giữ nhật ký riêng trên thiết bị này.</p>
         <form onSubmit={(event) => void handleSubmit(event)}>
           {firebaseEnabled && !hasIdentity && (
             <>
@@ -103,7 +103,7 @@ function IdentityGate({ onAuthenticated }: { onAuthenticated: () => void }) {
                 <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required />
               </label>
               <label className="field-block">
-                <span>Mật khẩu Firebase</span>
+                <span>Mật khẩu tài khoản</span>
                 <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={cloudMode === 'register' ? 'new-password' : 'current-password'} required />
               </label>
               <button type="button" className="text-button" onClick={() => setCloudMode(cloudMode === 'register' ? 'signin' : 'register')}>
@@ -118,8 +118,8 @@ function IdentityGate({ onAuthenticated }: { onAuthenticated: () => void }) {
             </label>
           )}
           <label className="field-block">
-            <span>Mã mở khóa 6 chữ số</span>
-            <input value={pin} onChange={(event) => setPin(event.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" autoComplete="current-password" pattern="\d{6}" required />
+            <span>Mã khóa ứng dụng 6 chữ số</span>
+            <input value={pin} onChange={(event) => setPin(event.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" autoComplete="off" pattern="\d{6}" required />
           </label>
           {error && <p className="form-error" role="alert">{error}</p>}
           <button type="submit" className="primary-button">{hasIdentity ? 'Mở khóa Măm' : 'Tạo không gian riêng'}</button>

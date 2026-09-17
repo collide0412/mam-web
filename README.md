@@ -2,7 +2,7 @@
 
 Măm là PWA theo dõi calories, hoạt động local-first và có thể chạy offline. Dữ liệu hồ sơ và nhật ký được lưu trên thiết bị bằng IndexedDB.
 
-Ở lần mở đầu tiên, Măm yêu cầu tên hiển thị và mã mở khóa 6 chữ số. Những lần sau phải nhập đúng mã để mở ứng dụng; mã không được lưu dạng văn bản mà được lưu dưới dạng hash trong bộ nhớ cục bộ của thiết bị.
+Ở lần mở đầu tiên, Măm yêu cầu tài khoản và mã khóa ứng dụng 6 chữ số. Mật khẩu tài khoản dùng cho Firebase Authentication và đồng bộ cloud; mã khóa ứng dụng dùng để mở nhanh Măm trên thiết bị này. Những lần sau phải nhập đúng mã để mở ứng dụng; mã không được lưu dạng văn bản mà được lưu dưới dạng hash trong bộ nhớ cục bộ của thiết bị.
 
 Đây là cơ chế khóa riêng tư cho thiết bị, không phải hệ thống tài khoản đồng bộ giữa nhiều thiết bị. GitHub Pages chỉ chạy frontend tĩnh, vì vậy nếu cần đăng nhập email/OAuth, khôi phục tài khoản hoặc đồng bộ dữ liệu thật, cần tích hợp thêm backend xác thực như Supabase Auth + database.
 
@@ -105,6 +105,8 @@ Workflow [firestore-rules.yml](.github/workflows/firestore-rules.yml) sẽ tự 
 3. Trong GitHub vào **Settings → Secrets and variables → Actions → New repository secret**.
 4. Đặt Name là `FIREBASE_SERVICE_ACCOUNT`.
 5. Mở file JSON, copy toàn bộ nội dung vào Secret, rồi bấm **Add secret**.
+
+Secret này phải là JSON service account của Google/Firebase, bắt đầu bằng `{` và chứa các trường như `client_email`, `private_key`, `project_id`. Không dùng Firebase Web config (`apiKey`, `authDomain`, `appId`) cho secret này. Secret phải được tạo ở cấp **Repository**, hoặc trong đúng Environment mà workflow sử dụng.
 
 File JSON này là credential nhạy cảm. Không commit vào repository, không đặt trong `.env.local`, và không dán vào chat. Workflow chỉ dùng secret này trên GitHub Actions để deploy rules.
 

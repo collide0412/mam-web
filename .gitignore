@@ -10,7 +10,30 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+coverage
+.firebase
+.vite
+.vitest
+test-results
+playwright-report
+*.tsbuildinfo
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
 *.local
+*.pem
+*.key
+*.p12
+serviceAccount*.json
+firebase-adminsdk*.json
+firebase-debug.log
+
+# Local agent/tooling metadata
+.agents/
+.claude/
+skills-lock.json
 
 # Editor directories and files
 .vscode/*

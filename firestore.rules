@@ -1,12 +1,143 @@
 rules_version = '2';
 
+// ===============================================================
+// Assumed data model
+// ===============================================================
+// users/{uid}
+//   profile: map containing id, name, region, language, currency,
+//            calorieGoal, proteinGoal, carbsGoal, fatGoal,
+//            allergens, dietary
+//
+// users/{uid}/meals/{mealId}
+//   id, profileId, foodId, foodName, quantity, serving, mealType,
+//   calories, protein, carbs, fat, timestamp, optional notes
+//
+// The web client stores timestamp as an ISO-8601 string, not a Firestore
+// timestamp. All profile and meal documents are private to the Firebase UID.
+// ===============================================================
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    // =============================================================
+    // Helper functions
+    // =============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
 
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function hasRequired(data, fields) {
+      return data.keys().hasAll(fields);
+    }
+
+    function hasOnly(data, fields) {
+      return data.keys().hasOnly(fields);
+    }
+
+    function validString(data, field, minLength, maxLength) {
+      return data[field] is string &&
+        data[field].size() >= minLength &&
+        data[field].size() <= maxLength;
+    }
+
+    function validNumber(data, field, minimum, maximum) {
+      return data[field] is number &&
+        data[field] >= minimum &&
+        data[field] <= maximum;
+    }
+
+    function validList(data, field, maximumSize) {
+      return data[field] is list && data[field].size() <= maximumSize;
+    }
+
+    function validIsoTimestamp(data, field) {
+      return data[field] is string &&
+        data[field].matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$');
+    }
+
+    function validUserDocument(data, userId) {
+      return data is map &&
+        hasOnly(data, ['profile']) &&
+        validProfile(data.profile, userId);
+    }
+
+    function validProfile(profile, userId) {
+      return profile is map &&
+        hasRequired(profile, [
+          'id', 'name', 'region', 'language', 'currency',
+          'calorieGoal', 'proteinGoal', 'carbsGoal', 'fatGoal',
+          'allergens', 'dietary'
+        ]) &&
+        hasOnly(profile, [
+          'id', 'name', 'region', 'language', 'currency',
+          'calorieGoal', 'proteinGoal', 'carbsGoal', 'fatGoal',
+          'allergens', 'dietary'
+        ]) &&
+        profile.id is string && profile.id == userId &&
+        validString(profile, 'name', 1, 80) &&
+        validString(profile, 'region', 1, 80) &&
+        profile.language is string && profile.language in ['vi', 'en', 'ko'] &&
+        profile.currency is string && profile.currency in ['VND', 'KRW'] &&
+        validNumber(profile, 'calorieGoal', 500, 10000) &&
+        validNumber(profile, 'proteinGoal', 0, 1000) &&
+        validNumber(profile, 'carbsGoal', 0, 2000) &&
+        validNumber(profile, 'fatGoal', 0, 1000) &&
+        validList(profile, 'allergens', 30) &&
+        validList(profile, 'dietary', 30);
+    }
+
+    function validMeal(meal, userId, mealId) {
+      return meal is map &&
+        hasRequired(meal, [
+          'id', 'profileId', 'foodId', 'foodName', 'quantity', 'serving',
+          'mealType', 'calories', 'protein', 'carbs', 'fat', 'timestamp'
+        ]) &&
+        hasOnly(meal, [
+          'id', 'profileId', 'foodId', 'foodName', 'quantity', 'serving',
+          'mealType', 'calories', 'protein', 'carbs', 'fat', 'timestamp',
+          'notes'
+        ]) &&
+        meal.id is string && meal.id == mealId &&
+        meal.profileId is string && meal.profileId == userId &&
+        validString(meal, 'foodId', 1, 120) &&
+        validString(meal, 'foodName', 1, 160) &&
+        validNumber(meal, 'quantity', 0.01, 100) &&
+        validString(meal, 'serving', 1, 120) &&
+        meal.mealType is string && meal.mealType in ['Breakfast', 'Lunch', 'Dinner', 'Snack'] &&
+        validNumber(meal, 'calories', 0, 100000) &&
+        validNumber(meal, 'protein', 0, 10000) &&
+        validNumber(meal, 'carbs', 0, 10000) &&
+        validNumber(meal, 'fat', 0, 10000) &&
+        validIsoTimestamp(meal, 'timestamp') &&
+        (!meal.keys().hasAny(['notes']) || validString(meal, 'notes', 0, 1000));
+    }
+
+    // =============================================================
+    // Private user profile
+    // =============================================================
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) &&
+        validUserDocument(request.resource.data, userId);
+      allow update: if isOwner(userId) &&
+        validUserDocument(request.resource.data, userId);
+      allow delete: if isOwner(userId);
+
+      // ============================================================
+      // Private meal entries
+      // ============================================================
       match /meals/{mealId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+          validMeal(request.resource.data, userId, mealId);
+        allow update: if isOwner(userId) &&
+          validMeal(request.resource.data, userId, mealId);
+        allow delete: if isOwner(userId);
       }
     }
   }

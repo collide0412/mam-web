@@ -94,6 +94,20 @@ Trong GitHub repository mở **Settings → Secrets and variables → Actions �
 
 Đặt `VITE_FIREBASE_ENABLED` là `true`. Workflow deploy đã truyền các secrets này vào bước Vite build.
 
+### Tự động deploy Firestore Rules
+
+Workflow [firestore-rules.yml](.github/workflows/firestore-rules.yml) sẽ tự deploy rules khi `firestore.rules` hoặc `firebase.json` thay đổi trên nhánh `main`. Có thể chạy thủ công bằng **Actions → Deploy Firestore Rules → Run workflow**.
+
+Để cấp quyền cho workflow:
+
+1. Vào **Firebase Console → Project settings → Service accounts**.
+2. Chọn **Generate new private key** và tải file JSON về máy.
+3. Trong GitHub vào **Settings → Secrets and variables → Actions → New repository secret**.
+4. Đặt Name là `FIREBASE_SERVICE_ACCOUNT`.
+5. Mở file JSON, copy toàn bộ nội dung vào Secret, rồi bấm **Add secret**.
+
+File JSON này là credential nhạy cảm. Không commit vào repository, không đặt trong `.env.local`, và không dán vào chat. Workflow chỉ dùng secret này trên GitHub Actions để deploy rules.
+
 ### 6. Kiểm tra
 
 ```bash

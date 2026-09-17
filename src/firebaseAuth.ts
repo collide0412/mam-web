@@ -1,7 +1,9 @@
 import {
   createUserWithEmailAndPassword,
+  GoogleAuthProvider,
   onAuthStateChanged,
   signInWithEmailAndPassword,
+  signInWithPopup,
   signOut,
   type User,
 } from 'firebase/auth'
@@ -26,4 +28,10 @@ export async function register(email: string, password: string): Promise<User> {
 
 export async function logout(): Promise<void> {
   if (firebaseAuth) await signOut(firebaseAuth)
+}
+
+export async function signInWithGoogle(): Promise<User> {
+  if (!firebaseEnabled || !firebaseAuth) throw new Error('Firebase chưa được cấu hình.')
+  const result = await signInWithPopup(firebaseAuth, new GoogleAuthProvider())
+  return result.user
 }

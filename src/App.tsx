@@ -10,7 +10,7 @@ import { RecommendPage } from './features/recommendations/RecommendPage'
 import { TogetherPage } from './features/together/TogetherPage'
 import type { MealEntry, Profile } from './types'
 import { firebaseEnabled } from './firebase'
-import { register, signIn } from './firebaseAuth'
+import { register, signIn, signInWithGoogle } from './firebaseAuth'
 import { getCloudProfile } from './firebaseStore'
 
 const defaultProfile: Profile = {
@@ -82,6 +82,22 @@ function IdentityGate({ onAuthenticated }: { onAuthenticated: () => void }) {
     onAuthenticated()
   }
 
+  const handleGoogleSignIn = async () => {
+    setError('')
+    if (!/^\d{6}$/.test(pin)) {
+      setError('Hãy nhập mã khóa ứng dụng gồm đúng 6 chữ số trước.')
+      return
+    }
+    try {
+      const user = await signInWithGoogle()
+      const existingProfile = await getCloudProfile(user.uid)
+      await setupIdentity(user.displayName ?? user.email?.split('@')[0] ?? 'Bạn', pin, user.uid, existingProfile ?? undefined)
+      onAuthenticated()
+    } catch {
+      setError('Không thể đăng nhập bằng Google. Kiểm tra Authorized domains và cấu hình Firebase.')
+    }
+  }
+
   return (
     <main className="identity-shell">
       <section className="identity-card" aria-labelledby="identity-title">
@@ -106,6 +122,9 @@ function IdentityGate({ onAuthenticated }: { onAuthenticated: () => void }) {
                 <span>Mật khẩu tài khoản</span>
                 <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={cloudMode === 'register' ? 'new-password' : 'current-password'} required />
               </label>
+              <button type="button" className="secondary-button google-button" onClick={() => void handleGoogleSignIn()}>
+                Tiếp tục với Google
+              </button>
               <button type="button" className="text-button" onClick={() => setCloudMode(cloudMode === 'register' ? 'signin' : 'register')}>
                 {cloudMode === 'register' ? 'Đã có tài khoản? Đăng nhập' : 'Tạo tài khoản mới'}
               </button>
@@ -119,7 +138,7 @@ function IdentityGate({ onAuthenticated }: { onAuthenticated: () => void }) {
           )}
           <label className="field-block">
             <span>Mã khóa ứng dụng 6 chữ số</span>
-            <input value={pin} onChange={(event) => setPin(event.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" autoComplete="off" pattern="\d{6}" required />
+            <input type="password" value={pin} onChange={(event) => setPin(event.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" autoComplete="off" pattern="\d{6}" maxLength={6} required />
           </label>
           {error && <p className="form-error" role="alert">{error}</p>}
           <button type="submit" className="primary-button">{hasIdentity ? 'Mở khóa Măm' : 'Tạo không gian riêng'}</button>

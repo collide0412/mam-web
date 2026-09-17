@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { NavLink, Route, Routes } from 'react-router-dom'
-import { clearIdentity, flushPendingSync, getIdentity, getMealsForProfile, getProfiles, getSelectedProfileId, saveMeal, saveProfile, saveSelectedProfileId, setupIdentity, verifyIdentity } from './db/store'
+import { flushPendingSync, getAppLocked, getIdentity, getMealsForProfile, getProfiles, saveMeal, saveProfile, setAppLocked, setupIdentity, verifyIdentity } from './db/store'
 import { AddFoodPage } from './features/search/AddFoodPage'
 import { TodayPage } from './features/today/TodayPage'
 import { DiaryPage } from './features/diary/DiaryPage'
@@ -149,7 +149,6 @@ function IdentityGate({ onAuthenticated }: { onAuthenticated: () => void }) {
 }
 
 function App() {
-  const [profiles, setProfiles] = useState<Profile[]>([])
   const [profile, setProfile] = useState<Profile>(defaultProfile)
   const [meals, setMeals] = useState<MealEntry[]>([])
   const [offline, setOffline] = useState(!navigator.onLine)
@@ -157,10 +156,13 @@ function App() {
   const [identity, setIdentity] = useState<{ profileId: string } | null>(null)
   const [identityReady, setIdentityReady] = useState(false)
   const [profileReady, setProfileReady] = useState(false)
+  const [locked, setLocked] = useState(false)
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('mam-theme') === 'dark')
 
   useEffect(() => {
-    void getIdentity().then((storedIdentity) => {
+    void Promise.all([getIdentity(), getAppLocked()]).then(([storedIdentity, isLocked]) => {
       setIdentity(storedIdentity ? { profileId: storedIdentity.profileId } : null)
+      setLocked(isLocked)
       setIdentityReady(true)
     })
   }, [])
@@ -169,14 +171,11 @@ function App() {
     if (!identity) return
     void (async () => {
       const storedProfiles = await getProfiles()
-      const selected = (await getSelectedProfileId()) ?? identity.profileId
-      const activeProfile = storedProfiles.find((item) => item.id === selected) ?? storedProfiles.find((item) => item.id === identity.profileId)
+      const activeProfile = storedProfiles.find((item) => item.id === identity.profileId)
       if (!activeProfile) {
-        await clearIdentity()
         setIdentity(null)
         return
       }
-      setProfiles(storedProfiles)
       setProfile(activeProfile)
       setDraftName(activeProfile.name)
       setMeals(await getMealsForProfile(activeProfile.id))
@@ -187,6 +186,11 @@ function App() {
   useEffect(() => {
     document.documentElement.lang = profile.language
   }, [profile.language])
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = darkMode ? 'dark' : 'light'
+    localStorage.setItem('mam-theme', darkMode ? 'dark' : 'light')
+  }, [darkMode])
 
   useEffect(() => {
     const handleOnline = () => {
@@ -220,16 +224,6 @@ function App() {
     setMeals((current) => [entry, ...current])
   }
 
-  const handleProfileChange = async (nextId: string) => {
-    const nextProfile = profiles.find((item) => item.id === nextId) ?? profile
-    if (!nextProfile) return
-
-    setProfile(nextProfile)
-    setDraftName(nextProfile.name)
-    await saveSelectedProfileId(nextProfile.id)
-    setMeals(await getMealsForProfile(nextProfile.id))
-  }
-
   const handleSaveCurrentProfile = async () => {
     const nextProfile: Profile = {
       ...profile,
@@ -238,29 +232,17 @@ function App() {
 
     await saveProfile(nextProfile)
     setProfile(nextProfile)
-    setProfiles((current) => current.some((item) => item.id === nextProfile.id) ? current.map((item) => item.id === nextProfile.id ? nextProfile : item) : [...current, nextProfile])
-    await saveSelectedProfileId(nextProfile.id)
     setMeals(await getMealsForProfile(nextProfile.id))
   }
 
-  const handleAddProfile = async () => {
-    const nextId = `profile-${Date.now()}`
-    const nextProfile: Profile = {
-      ...defaultProfile,
-      id: nextId,
-      name: 'Bạn',
-    }
-
-    await saveProfile(nextProfile)
-    const updatedProfiles = await getProfiles()
-    setProfiles(updatedProfiles)
-    await handleProfileChange(nextProfile.id)
+  const handleLock = async () => {
+    await setAppLocked(true)
+    setLocked(true)
   }
 
-  const handleLock = async () => {
-    await clearIdentity()
-    setProfileReady(false)
-    setIdentity(null)
+  const handleUnlock = async () => {
+    await setAppLocked(false)
+    setLocked(false)
   }
 
   const navItems = useMemo(
@@ -273,7 +255,7 @@ function App() {
     [],
   )
 
-  if (!identityReady || !identity) return <IdentityGate onAuthenticated={() => void getIdentity().then((storedIdentity) => setIdentity(storedIdentity ? { profileId: storedIdentity.profileId } : null))} />
+  if (!identityReady || !identity || locked) return <IdentityGate onAuthenticated={() => void getIdentity().then((storedIdentity) => { setIdentity(storedIdentity ? { profileId: storedIdentity.profileId } : null); void handleUnlock() })} />
   if (!profileReady) return <main className="identity-shell"><p>Đang tải dữ liệu riêng tư…</p></main>
 
   return (
@@ -287,6 +269,9 @@ function App() {
             <small>Calorie Tracker</small>
           </div>
         </div>
+        <button type="button" className="theme-toggle" onClick={() => setDarkMode((current) => !current)} aria-label={darkMode ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'}>
+          {darkMode ? '☀' : '☾'}
+        </button>
       </header>
 
       <main className="content-panel">
@@ -303,15 +288,8 @@ function App() {
               <div className="page-shell">
                 <section className="profile-card large" aria-label="Profile settings">
                   <h1>Hồ sơ</h1>
-                  <div className="profile-grid">
-                    <label className="field-block">
-                      <span>Chọn người dùng</span>
-                      <select value={profile.id} onChange={(event) => void handleProfileChange(event.target.value)} aria-label="Chọn hồ sơ chính">
-                        {profiles.map((item) => (
-                          <option key={item.id} value={item.id}>{item.name}</option>
-                        ))}
-                      </select>
-                    </label>
+                  <p className="muted">Hồ sơ này gắn với tài khoản của bạn và được đồng bộ riêng tư trên các thiết bị.</p>
+                  <div className="profile-grid single-profile">
                     <label className="field-block">
                       <span>Tên hiển thị</span>
                       <input value={draftName} onChange={(event) => setDraftName(event.target.value)} aria-label="Tên người dùng" />
@@ -319,7 +297,6 @@ function App() {
                   </div>
                   <div className="profile-actions">
                     <button type="button" className="primary-button" onClick={() => void handleSaveCurrentProfile()}>Lưu hồ sơ</button>
-                    <button type="button" className="secondary-button" onClick={() => void handleAddProfile()}>+ Thêm hồ sơ</button>
                     <button type="button" className="text-button" onClick={() => void handleLock()}>Khóa Măm</button>
                   </div>
                 </section>

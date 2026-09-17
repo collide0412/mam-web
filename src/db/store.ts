@@ -23,6 +23,7 @@ const DB_NAME = 'mam-web-db'
 const DB_VERSION = 2
 const SELECTED_PROFILE_KEY = 'mam-selected-profile-id'
 const IDENTITY_KEY = 'mam-identity-v1'
+const LOCKED_KEY = 'mam-app-locked'
 
 export const defaultProfiles: Profile[] = []
 
@@ -100,6 +101,16 @@ export async function saveSelectedProfileId(profileId: string): Promise<void> {
   }
 }
 
+export async function getAppLocked(): Promise<boolean> {
+  return typeof window !== 'undefined' && window.localStorage.getItem(LOCKED_KEY) === 'true'
+}
+
+export async function setAppLocked(locked: boolean): Promise<void> {
+  if (typeof window !== 'undefined') {
+    window.localStorage.setItem(LOCKED_KEY, String(locked))
+  }
+}
+
 async function hashPin(pin: string): Promise<string> {
   const bytes = new TextEncoder().encode(pin)
   const digest = await crypto.subtle.digest('SHA-256', bytes)
@@ -139,6 +150,7 @@ export async function setupIdentity(name: string, pin: string, profileId: string
   await saveSelectedProfileId(profile.id)
   const identity: IdentityRecord = { profileId: profile.id, pinHash: await hashPin(pin) }
   window.localStorage.setItem(IDENTITY_KEY, JSON.stringify(identity))
+  await setAppLocked(false)
   return identity
 }
 
@@ -150,6 +162,7 @@ export async function verifyIdentity(pin: string): Promise<boolean> {
 export async function clearIdentity(): Promise<void> {
   if (typeof window !== 'undefined') {
     window.localStorage.removeItem(IDENTITY_KEY)
+    window.localStorage.removeItem(LOCKED_KEY)
   }
 }
 

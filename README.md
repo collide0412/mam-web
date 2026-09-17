@@ -121,6 +121,12 @@ Mở app ở địa chỉ Vite hiển thị, tạo một tài khoản test, rồ
 
 Các helper Firebase được tách ở [src/firebase.ts](src/firebase.ts), [src/firebaseAuth.ts](src/firebaseAuth.ts) và [src/firebaseStore.ts](src/firebaseStore.ts). Màn hình identity đã gọi `signIn`/`register`; profile và meal được lưu local trước rồi đồng bộ cloud.
 
+Mỗi Firebase account tương ứng với đúng một profile riêng tư. Không còn tạo hoặc chuyển đổi nhiều profile trong cùng một account. Nút **Khóa Măm** chỉ khóa giao diện bằng mã khóa ứng dụng cục bộ; nó không xóa identity, không đăng xuất Firebase và không xóa dữ liệu.
+
+Dark mode được bật/tắt từ nút mặt trời/trăng trên thanh đầu trang và được lưu trong `localStorage`.
+
+Catalog mở rộng món Hà Nội nằm trong [food-catalog-hanoi.csv](food-catalog-hanoi.csv). File có món, nhóm bữa, biến thể, topping/lựa chọn, khẩu phần, dị ứng, khoảng giá và URL tham khảo. Đây là catalog biên tập có nguồn tham khảo, không phải tuyên bố đã crawl toàn bộ Internet; giá trị dinh dưỡng cần xác minh thêm theo từng cửa hàng trước khi dùng cho production nutrition claims.
+
 ### Offline sync
 
 Măm lưu mọi thay đổi vào IndexedDB trước. Nếu Firebase không truy cập được, thay đổi được đưa vào object store `syncQueue` với khóa ổn định theo profile hoặc meal. Queue được retry khi app mở lại, khi browser chuyển sang online và mỗi 30 giây; ghi thành công sẽ xóa item khỏi queue. Vì thao tác dùng cùng document ID, retry không tạo bản ghi trùng.

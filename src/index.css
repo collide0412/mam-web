@@ -35,9 +35,21 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+:root[data-theme='dark'] {
+  --bg: #171513;
+  --surface: #24201d;
+  --surface-soft: #3a2d26;
+  --surface-strong: #4a372d;
+  --text: #fff8f2;
+  --text-soft: #d5c7bd;
+  --muted: #b8a69a;
+  --border: rgba(255, 248, 242, 0.14);
+  --shadow: 0 14px 28px rgba(0, 0, 0, 0.28);
+}
+
 * { box-sizing: border-box; }
 html, body, #root { margin: 0; min-height: 100%; }
-body { min-height: 100vh; background: linear-gradient(180deg, #f7f4ef 0%, #efe7dd 100%); }
+body { min-height: 100vh; background: linear-gradient(180deg, var(--bg) 0%, var(--surface-strong) 100%); }
 button, input, select, textarea { font: inherit; }
 a { color: inherit; }
 button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, a:focus-visible {
@@ -89,6 +101,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
 .brand-wrap strong { display: block; font-size: 1.1rem; }
 .brand-wrap small { color: var(--text-soft); display: block; }
+.theme-toggle { border: 1px solid var(--border); border-radius: 999px; background: var(--surface-soft); color: var(--text); width: 40px; height: 40px; cursor: pointer; font-size: 1.2rem; }
 
 .content-panel { flex: 1; }
 .page-shell { padding-top: 8px; }
@@ -187,6 +200,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   color: var(--text);
 }
 
+.google-button { width: 100%; }
+
 .progress-bar {
   width: 100%;
   height: 12px;
@@ -284,7 +299,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 12px 14px;
-  background: white;
+  background: var(--surface);
+  color: var(--text);
 }
 
 .search-layout {
@@ -367,7 +383,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   bottom: 16px;
   transform: translateX(-50%);
   width: min(calc(100% - 20px), var(--max-width));
-  background: rgba(255, 253, 250, 0.9);
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
   border: 1px solid var(--border);
   border-radius: 18px;
   box-shadow: var(--shadow);

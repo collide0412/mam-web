@@ -38,6 +38,8 @@ const storeMock = vi.hoisted(() => ({
   verifyIdentity: vi.fn(async () => true),
   clearIdentity: vi.fn(async () => undefined),
   flushPendingSync: vi.fn(async () => undefined),
+  getAppLocked: vi.fn(async () => false),
+  setAppLocked: vi.fn(async () => undefined),
   getProfiles: vi.fn(async () => [{
     id: 'linh',
     name: 'Linh',
@@ -83,7 +85,7 @@ describe('App', () => {
     expect(screen.getByText(/Măm/i)).toBeInTheDocument()
   })
 
-  it('switches active profile and persists the selection', async () => {
+  it('saves the current account profile', async () => {
     render(
       <MemoryRouter initialEntries={['/profile']}>
         <App />
@@ -91,17 +93,18 @@ describe('App', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByLabelText('Chọn hồ sơ chính')).toBeInTheDocument()
+      expect(screen.getByLabelText('Tên người dùng')).toBeInTheDocument()
     })
 
     await act(async () => {
-      fireEvent.change(screen.getByLabelText('Chọn hồ sơ chính'), { target: { value: 'an' } })
+      fireEvent.change(screen.getByLabelText('Tên người dùng'), { target: { value: 'Mai' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Lưu hồ sơ' }))
     })
 
     await waitFor(() => {
-      expect(storeMock.saveSelectedProfileId).toHaveBeenCalledWith('an')
+      expect(storeMock.saveProfile).toHaveBeenCalled()
     })
 
-    expect(screen.getByText(/An/i)).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Mai')).toBeInTheDocument()
   })
 })

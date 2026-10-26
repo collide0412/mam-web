@@ -1,5 +1,5 @@
 import type { User } from 'firebase/auth'
-import { getFirebaseServices, getLoadedFirebaseServices, firebaseEnabled } from './firebase'
+import { getFirebaseServices, getLoadedFirebaseServices, firebaseEnabled, type FirebaseServices } from './firebase'
 import { CloudDataError, CloudOwnershipError, CloudTimeoutError } from './firebaseStore'
 
 export function watchFirebaseUser(onUser: (user: User | null) => void, onError?: (error: Error) => void): () => void {
@@ -38,10 +38,29 @@ export async function logout(): Promise<void> {
   }
 }
 
-export async function signInWithGoogle(): Promise<User> {
+let googleServices: FirebaseServices | undefined
+
+export async function prepareGoogleSignIn(): Promise<void> {
+  const services = await getFirebaseServices()
+  await services.auth.authStateReady()
+  googleServices = services
+}
+
+export function signInWithGoogle(): Promise<User> {
+  if (!googleServices) throw new Error('Google chưa sẵn sàng. Hãy chờ tải xong rồi thử lại.')
+  const { auth, authSdk } = googleServices
+  // Loading the SDK inside the click can expire the browser's user activation.
+  return authSdk.signInWithPopup(auth, new authSdk.GoogleAuthProvider()).then((result) => result.user)
+}
+
+export async function resetPassword(email: string): Promise<void> {
   const { auth, authSdk } = await getFirebaseServices()
-  const result = await authSdk.signInWithPopup(auth, new authSdk.GoogleAuthProvider())
-  return result.user
+  try {
+    await authSdk.sendPasswordResetEmail(auth, email)
+  } catch (error: unknown) {
+    if (error instanceof Error && 'code' in error && error.code === 'auth/user-not-found') return
+    throw error
+  }
 }
 
 
@@ -61,7 +80,7 @@ export function firebaseAuthError(error: unknown): string {
     'auth/password-does-not-meet-requirements': 'Mật khẩu chưa đáp ứng chính sách tài khoản.',
     'auth/operation-not-allowed': 'Phương thức đăng nhập này chưa được bật trong Firebase.',
     'auth/unauthorized-domain': 'Tên miền này chưa được cho phép đăng nhập trong Firebase.',
-    'auth/popup-blocked': 'Trình duyệt chặn cửa sổ Google. Hãy cho phép cửa sổ bật lên.',
+    'auth/popup-blocked': 'Không mở được cửa sổ Google. Hãy bấm thử lại; nếu vẫn bị chặn, cho phép cửa sổ bật lên cho Măm hoặc dùng email.',
     'auth/popup-closed-by-user': 'Cửa sổ Google đã đóng. Bạn có thể thử lại.',
     'auth/cancelled-popup-request': 'Yêu cầu đăng nhập Google đã bị hủy. Hãy thử lại.',
     'auth/account-exists-with-different-credential': 'Email này đã dùng phương thức khác. Hãy đăng nhập bằng phương thức ban đầu.',

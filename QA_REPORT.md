@@ -1,5 +1,13 @@
 # Măm overhaul verification — 2026-10-26
 
+## Authentication follow-up — 2026-10-26
+
+Google preparation now loads the SDK and waits for Auth readiness before enabling its button. The click calls signInWithPopup without an application-level await first. Reintroducing the old await makes the synchronous-call regression fail (popup spy called zero times); restoring the change passes. This proves application ordering at the SDK boundary, not the user's browser popup policy or the SDK's internal iframe timing.
+
+Added password reset through Firebase sendPasswordResetEmail, using a neutral account-existence response. The email-only form does not require the existing password or device PIN. Pending requests disable duplicate actions, errors retain the email, and the user can return to sign-in. Missing-account errors are hidden while network errors still propagate.
+
+Validation: 54 tests pass; strict TypeScript/Vite builds with Firebase enabled using demo config and disabled both pass; Pages smoke passes; lint exits zero with the existing useJournal advisory. BrowserSkill is unavailable in this session (daemon startup failure), so no new real-browser popup, mobile visual, real reset-email delivery or completed reset-link verification is claimed. Production Firebase providers/rules were not changed.
+
 ## Scope and current result
 
 FINAL LIVE VERIFICATION: On 2026-10-26 the user completed Google selection on the published GitHub Pages app. The account profile and cloud controls appeared. Saving the unchanged profile showed syncing, then no pending writes. Reload preserved the account and returned to no pending writes. This confirms real Google sign-in, a live profile write acknowledged by the sync queue, and session restoration. Email/password remains covered by the enabled provider and successful SDK/UI emulator checks; no separate real email/password account was created. The user-revised goal is achieved.

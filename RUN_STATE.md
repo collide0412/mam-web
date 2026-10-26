@@ -14,6 +14,8 @@ Validation: 49 tests pass before and after cleanup; strict TypeScript build, lin
 
 ## Operations
 
+Authentication follow-up: the current checkout is `C:/Users/dangc/projects/mam-web` (the former root checkout was absent). Google SDK/Auth readiness is prepared before enabling sign-in, and the click has no application-level await before invoking the popup SDK. Forgot-password now sends Firebase reset email with neutral success text, pending/error/retry handling, and no password/PIN prerequisite. 54 tests, strict builds and Pages smoke pass; lint has the existing advisory. The popup ordering test fails when the old await is restored. Real browser/device and reset-email/link verification remain unperformed: BrowserSkill daemon startup failed. Commit/publish this bounded authentication change; do not claim the reported browser issue fully reproduced or resolved on the user's device.
+
 - Repository: https://github.com/collide0412/mam-web.git
 - Product: https://collide0412.github.io/mam-web/
 - Source overhaul: `e15d5b1`; live Google verification: `53ea4b1`.

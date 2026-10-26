@@ -5,7 +5,7 @@ import { IdentityGate } from './IdentityGate'
 const mocks = vi.hoisted(() => ({
   enabled: true,
   getIdentity: vi.fn(), setupIdentity: vi.fn(), verifyIdentity: vi.fn(),
-  signIn: vi.fn(), register: vi.fn(), signInWithGoogle: vi.fn(), logout: vi.fn(),
+  signIn: vi.fn(), register: vi.fn(), signInWithGoogle: vi.fn(), logout: vi.fn(), prepareGoogleSignIn: vi.fn(), resetPassword: vi.fn(),
   getCloudProfile: vi.fn(),
 }))
 vi.mock('../../firebase', () => ({ get firebaseEnabled() { return mocks.enabled } }))
@@ -24,6 +24,8 @@ beforeEach(() => {
   mocks.signIn.mockResolvedValue(user)
   mocks.register.mockResolvedValue(user)
   mocks.signInWithGoogle.mockResolvedValue(user)
+  mocks.prepareGoogleSignIn.mockResolvedValue(undefined)
+  mocks.resetPassword.mockResolvedValue(undefined)
 })
 afterEach(cleanup)
 
@@ -38,6 +40,51 @@ async function openGate() {
 }
 
 describe('IdentityGate', () => {
+  it('resets a password without requiring a password or device PIN', async () => {
+    const { authenticated } = await openGate()
+    fireEvent.change(screen.getByLabelText('Mã khóa ứng dụng 6 chữ số'), { target: { value: '123' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Quên mật khẩu?' }))
+    expect(screen.queryByLabelText('Mật khẩu tài khoản')).not.toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'mai@example.com' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi email đặt lại mật khẩu' }))
+    await waitFor(() => expect(mocks.resetPassword).toHaveBeenCalledWith('mai@example.com'))
+    expect(await screen.findByText(/Nếu email này có tài khoản/)).toBeInTheDocument()
+    expect(authenticated).not.toHaveBeenCalled()
+    expect(mocks.setupIdentity).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Quay lại đăng nhập' }))
+    expect(screen.getByLabelText('Mật khẩu tài khoản')).toBeInTheDocument()
+  })
+
+  it('keeps Google disabled until initialization completes and allows retry on load failure', async () => {
+    mocks.prepareGoogleSignIn.mockRejectedValueOnce(new Error('Offline'))
+    render(<IdentityGate onAuthenticated={vi.fn()} />)
+    const retry = await screen.findByRole('button', { name: 'Thử tải lại Google' })
+    let ready: (() => void) | undefined
+    mocks.prepareGoogleSignIn.mockReturnValueOnce(new Promise<void>((resolve) => { ready = resolve }))
+    fireEvent.click(retry)
+    expect(screen.getByRole('button', { name: 'Đang chuẩn bị Google…' })).toBeDisabled()
+    expect(mocks.signInWithGoogle).not.toHaveBeenCalled()
+    await act(async () => ready?.())
+    expect(screen.getByRole('button', { name: 'Tiếp tục với Google' })).toBeEnabled()
+  })
+
+  it('shows reset errors and prevents duplicate reset requests while sending', async () => {
+    await openGate()
+    fireEvent.click(screen.getByRole('button', { name: 'Quên mật khẩu?' }))
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'mai@example.com' } })
+    let reject: ((error: Error) => void) | undefined
+    mocks.resetPassword.mockReturnValueOnce(new Promise<void>((_resolve, fail) => { reject = fail }))
+    const send = screen.getByRole('button', { name: 'Gửi email đặt lại mật khẩu' })
+    fireEvent.click(send)
+    fireEvent.click(send)
+    expect(send).toBeDisabled()
+    expect(mocks.resetPassword).toHaveBeenCalledOnce()
+    await act(async () => reject?.(new Error('Offline')))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Không thể xác thực')
+    expect(send).toBeEnabled()
+    expect(screen.getByLabelText('Email')).toHaveValue('mai@example.com')
+  })
+
   it('restores the cloud profile when email sign-in succeeds', async () => {
     const profile = { id: user.uid, name: 'Mai đã lưu' }
     mocks.getCloudProfile.mockResolvedValue(profile)

@@ -2,7 +2,7 @@
 
 ## Scope and current result
 
-The rebuilt software passes local checks and bounded browser use. The user removed Phone/SMS from scope to retain Spark. Email/Password and Google remain enabled; Phone is confirmed Disabled. The user requested publishing to GitHub Pages; deployment and real Google success are pending the publication check below.
+The rebuilt software passes local checks and bounded browser use. The user removed Phone/SMS from scope to retain Spark. Email/Password and Google remain enabled; Phone is confirmed Disabled. Source commit e15d5b1ebceb90ba51680f82d00ff88524f88b45 was published successfully to GitHub Pages; real Google completion is the remaining live check.
 
 ## Automated evidence
 
@@ -49,4 +49,6 @@ No full WCAG, assistive-technology, real-device touch/DPR or Lighthouse certific
 
 ## Publication checkpoint
 
-Repository: collide0412/mam-web. Target: https://collide0412.github.io/mam-web/. The existing workflow deploys pushes to main. All required Firebase secret names are present; local credentials and agent evidence remain ignored. At this report checkpoint the overhaul has not yet been pushed. Record the exact deployed source commit, workflow result, live asset identity and live Google/session result after publication.
+Repository: collide0412/mam-web. Live URL: https://collide0412.github.io/mam-web/. Source commit: e15d5b1ebceb90ba51680f82d00ff88524f88b45. Workflow https://github.com/collide0412/mam-web/actions/runs/40270865304 completed successfully: install, lint, strict typecheck, 49 tests, build, Pages smoke and deploy. Live DOM script index-B8o8WbIe.js matches the CI output; CSS is index-DMyQXX0_.css and lazy Firebase is firebaseClient-mE5DALnY.js. A cached old PWA updated to the new UI after reload without clearing browser data. Local credentials/agent evidence were excluded from the commit. The user is completing Google selection from this published domain; no successful OAuth claim is made yet.
+
+The public Auth configuration was also fetched using the key extracted in memory from that live compiled asset: HTTP 200, project number 837818293257, collide0412.github.io allowed. No key/token was printed or committed. The original old public tab was refreshed after confirming no form values were entered, releasing its older database connection. Temporary preview servers were stopped; the live page and chooser remain open for user sign-in.

@@ -2,6 +2,8 @@
 
 ## Scope and current result
 
+FINAL LIVE VERIFICATION: On 2026-10-26 the user completed Google selection on the published GitHub Pages app. The account profile and cloud controls appeared. Saving the unchanged profile showed syncing, then no pending writes. Reload preserved the account and returned to no pending writes. This confirms real Google sign-in, a live profile write acknowledged by the sync queue, and session restoration. Email/password remains covered by the enabled provider and successful SDK/UI emulator checks; no separate real email/password account was created. The user-revised goal is achieved. Earlier pending-Google statements below are chronological pre-verification evidence.
+
 The rebuilt software passes local checks and bounded browser use. The user removed Phone/SMS from scope to retain Spark. Email/Password and Google remain enabled; Phone is confirmed Disabled. Source commit e15d5b1ebceb90ba51680f82d00ff88524f88b45 was published successfully to GitHub Pages; real Google completion is the remaining live check.
 
 ## Automated evidence

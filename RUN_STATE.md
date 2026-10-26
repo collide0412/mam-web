@@ -4,9 +4,11 @@
 
 Overhaul Măm into an accessible, mobile-first, static/local-first PWA backed by the existing Firebase project. The user authorized rebuilding UI/backend, then explicitly withdrew SMS to avoid a paid Firebase plan. Authentication scope is now Email/Password and Google only.
 
-Status: LIVE_GOOGLE_QA. Source commit e15d5b1ebceb90ba51680f82d00ff88524f88b45 was pushed to main. Deploy to GitHub Pages run 40270865304 completed successfully, including 49 tests, lint, typecheck, build and Pages smoke. The live page loaded index-B8o8WbIe.js, matching the CI build. The old PWA initially served cached UI, then a reload loaded the new UI without clearing data. Goal is active; no billing or Phone activation blocker remains in scope.
+Status: COMPLETION_VERIFIED. On 2026-10-26 the user completed Google account selection. The live app showed its cloud account profile; saving the existing profile progressed through syncing to zero pending changes. Reload retained the authenticated account and again reached zero pending changes. The revised goal (Email/Password and Google; SMS withdrawn by the user) is achieved. Source commit e15d5b1 and documentation commit 30402fd were deployed successfully. The prior blocker/audit entries below are historical; no further user sign-in or billing action is required.
 
 ## Current implementation and checks
+
+Resumed Google handoff audit: 3 consecutive observations, counting the resumed publication turn and two automatic continuations. The publication turn made concrete progress; subsequent checks confirmed the same chooser still awaiting user input. Live app 1434514070 and popup 1434514073 are marked handoff. This is not evidence of successful OAuth or a newly demonstrated app failure. This blocked count is separate from the former Phone blocker.
 
 - Four-route light/dark UI; meal search, manual input, fractional portions, local dates, notes, edit/delete/undo, goals, optional PIN, JSON export and explicit guest import.
 - IndexedDB v3 migration, owner-scoped records, atomic local/outbox writes, durable tombstones, revision-safe acknowledgement, account-change guards and lazy Firebase.

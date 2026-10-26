@@ -77,7 +77,6 @@ Terminal khác dùng biến môi trường cho kiểm tra, không sửa config p
     $env:VITE_FIREBASE_USE_EMULATORS='true'
     $env:VITE_FIREBASE_PROJECT_ID='demo-mam-web'
     $env:VITE_FIREBASE_API_KEY='emulator-test-key'
-    $env:VITE_DISABLE_REACT_DEVTOOLS='1'
     npm run dev -- --host 127.0.0.1 --port 5173
 
 Smoke test chỉ chấp nhận demo project và đúng hai host emulator:
@@ -87,9 +86,11 @@ Smoke test chỉ chấp nhận demo project và đúng hai host emulator:
     $env:FIRESTORE_EMULATOR_HOST='127.0.0.1:8080'
     npm run smoke:firebase
 
-Bản production không bật emulator hay bỏ qua reCAPTCHA. Dev tools React chỉ được import trong chế độ phát triển.
+Bản production không bật emulator hay bỏ qua reCAPTCHA.
 
 ## Triển khai và bằng chứng
+
+GitHub chỉ cần mã nguồn, lockfile và cấu hình trong repo; workflow tự tạo `dist/`. Không commit `node_modules/`, `dist/`, `.env.local` hoặc bằng chứng chạy thử cục bộ. Dữ liệu CSV tham khảo nằm trong [data/hanoi](data/hanoi/README.md), không được đưa vào bản deploy; app dùng danh mục ngoại tuyến tại `src/data/catalog.ts`.
 
 Workflow .github/workflows/deploy.yml build và deploy GitHub Pages khi push main. Firebase config được cấp qua các repository secrets VITE_FIREBASE_*. Kết quả triển khai và kiểm tra thực tế được ghi tại QA_REPORT.md.
 

@@ -1,34 +1,22 @@
 # Resume point — 2026-10-26
 
-## Active goal
+## Product
 
-Overhaul Măm into an accessible, mobile-first, static/local-first PWA backed by the existing Firebase project. The user authorized rebuilding UI/backend, then explicitly withdrew SMS to avoid a paid Firebase plan. Authentication scope is now Email/Password and Google only.
+The mobile-first, static/local-first Măm PWA overhaul is complete. IndexedDB v3 stores owner-scoped journals with an atomic sync outbox. Firebase project `mam-app-877da`, app `1:837818293257:web:1d1c79247454655f6dacd8`, supplies optional Email/Password and Google accounts. SMS was withdrawn by the user to retain Spark; do not re-enable it.
 
-Status: COMPLETION_VERIFIED. On 2026-10-26 the user completed Google account selection. The live app showed its cloud account profile; saving the existing profile progressed through syncing to zero pending changes. Reload retained the authenticated account and again reached zero pending changes. The revised goal (Email/Password and Google; SMS withdrawn by the user) is achieved. Source commit e15d5b1 and documentation commit 30402fd were deployed successfully. The prior blocker/audit entries below are historical; no further user sign-in or billing action is required.
+Live Google sign-in, profile save reaching zero pending changes, and authenticated reload were verified on the published site. The earlier localhost chooser/domain problems are resolved historical observations, not an active blocker. See QA_REPORT.md for evidence and limits.
 
-## Current implementation and checks
+## Repository cleanup
 
-Resumed Google handoff audit: 3 consecutive observations, counting the resumed publication turn and two automatic continuations. The publication turn made concrete progress; subsequent checks confirmed the same chooser still awaiting user input. Live app 1434514070 and popup 1434514073 are marked handoff. This is not evidence of successful OAuth or a newly demonstrated app failure. This blocked count is separate from the former Phone blocker.
+Unused starter assets, demo components, obsolete scaffold reports and development-only React inspection dependencies have been removed. Tests, deployment scripts, security rules, migration data and product documentation are preserved. The three unused Hanoi CSVs now live under `data/hanoi/`, outside the deployed `public/` tree; SHA256 checks confirmed unchanged contents.
 
-- Four-route light/dark UI; meal search, manual input, fractional portions, local dates, notes, edit/delete/undo, goals, optional PIN, JSON export and explicit guest import.
-- IndexedDB v3 migration, owner-scoped records, atomic local/outbox writes, durable tombstones, revision-safe acknowledgement, account-change guards and lazy Firebase.
-- Firebase project mam-app-877da, web app 1:837818293257:web:1d1c79247454655f6dacd8. Email/Password and Google enabled. User briefly enabled Phone, then asked to omit SMS; Phone is now confirmed Disabled in Console. Spark retained; no SMS regions or test numbers were configured.
-- Removed PhoneSignIn, SMS SDK adapters, consent CSS, five obsolete Phone tests and the Phone smoke scenario. 49 tests pass; strict typecheck/build/Pages smoke pass. Lint exits 0 with the existing useJournal advisory. Auth/Firestore emulator smoke passes email, Google credentials, ownership/schema/boundary checks and delete/undo; emulator execution exited cleanly.
-- Firestore rules already deployed. SHA256 D7AFDB0F8340DB89E950130F1DD3C6E8F50E18DE8B1FA216797DB6F8F7BE1022.
-- Before SMS removal, all 24 main-route/theme/viewport states passed and an origin-unavailable PWA reload preserved data. The changed authentication screen was rechecked in dark mode at 320 and 1440 widths: local and email views have no horizontal overflow and no Phone button.
+Validation: 49 tests pass before and after cleanup; strict TypeScript build, lint and Pages smoke pass. npm reports zero vulnerabilities; no remaining package version changed. The production output contains no CSV data files. Existing lint/chunk-size advisories remain documented in QA_REPORT.md. Cleanup is ready for commit/push to main and its automatic Pages deployment; the GitHub workflow records the deployment result.
 
-## Google QA and publication
+## Operations
 
-The real Google chooser opened on localhost. User reported loading, then an unauthorized-domain error. DOM evidence places the domain error on 127.0.0.1:4179, while the localhost:4179 tab remained pending. Public Auth config fetched using the app's Web key confirms project number 837818293257 and authorized domains localhost, mam-app-877da.firebaseapp.com, mam-app-877da.web.app and collide0412.github.io. 127.0.0.1 is not authorized. Real Google OAuth success is not yet certified; use one published URL to eliminate test-tab confusion.
-
-Repository origin is https://github.com/collide0412/mam-web.git. The overhaul is committed and pushed as e15d5b1ebceb90ba51680f82d00ff88524f88b45. All required VITE_FIREBASE_* secret names exist. Pages is live at https://collide0412.github.io/mam-web/. The compiled live entry's public Web key was checked without printing it: Auth configuration returned HTTP 200, project number 837818293257 and collide0412.github.io allowed. The original old public tab was refreshed to the new UI after confirming its fields were empty, releasing the old database connection without deleting storage.
-
-Next: user is selecting Google in popup 1434514073, opened from live app tab 1434514070 at https://collide0412.github.io/mam-web/. Both tabs are marked handoff. Verify live cloud session/sync, update this checkpoint and QA_REPORT, commit the final documentation evidence, and close the goal only when the revised scope is proven. The GitHub connector filters workflow queries to PR events, so gh CLI was used for the push-triggered deployment. Workflow: https://github.com/collide0412/mam-web/actions/runs/40270865304.
-
-## Running surfaces and tools
-
-Node: C:/Users/dangc/AppData/Local/mam-toolchain/node-v24.22.1-win-x64. Java: C:/Users/dangc/AppData/Local/mam-toolchain/jdk-21.0.12.1+1-jre/bin.
-
-Preview servers 4178 and 4179 were stopped after verifying their task commands/PIDs. Temporary local QA tabs were closed and viewport overrides reset. Console user tab 1434513996 remains open; the project overview QA tab was closed. Original public tab 1434513922 is now on the new UI. Live app 1434514070 and Google popup 1434514073 are the current handoff. Emulators are stopped. Do not restart local previews to complete this live OAuth check.
-
-Evidence is under ignored .omo/evidence/. The two earlier implementation agents stopped at a usage limit; root completed integration. Do not restart workers or re-run finished checks without a changed requirement, failure or unresolved risk. No memory files were updated.
+- Repository: https://github.com/collide0412/mam-web.git
+- Product: https://collide0412.github.io/mam-web/
+- Source overhaul: `e15d5b1`; live Google verification: `53ea4b1`.
+- Node on this machine: `C:/Users/dangc/AppData/Local/mam-toolchain/node-v24.22.1-win-x64`.
+- Preview servers and Firebase emulators are stopped. Do not clear browser storage; it may contain unsynced meals.
+- Local environment, credentials, agent skills and `.omo/evidence/` are ignored by Git. No memory files were updated.

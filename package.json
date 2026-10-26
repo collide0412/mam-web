@@ -1,7 +1,9 @@
 {
   "name": "mam-web",
   "private": true,
-  "overrides": { "@grpc/grpc-js": "^1.14.6" },
+  "overrides": {
+    "@grpc/grpc-js": "^1.14.6"
+  },
   "version": "0.0.0",
   "type": "module",
   "scripts": {
@@ -32,9 +34,6 @@
     "fake-indexeddb": "^6.2.6",
     "jsdom": "^28.1.0",
     "oxlint": "^1.81.0",
-    "react-doctor": "^0.9.18",
-    "react-grab": "^0.2.0",
-    "react-scan": "^0.5.7",
     "typescript": "~6.0.2",
     "vite": "^8.3.0",
     "vite-plugin-pwa": "^1.3.0",

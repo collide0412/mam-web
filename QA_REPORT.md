@@ -2,11 +2,13 @@
 
 ## Scope and current result
 
-FINAL LIVE VERIFICATION: On 2026-10-26 the user completed Google selection on the published GitHub Pages app. The account profile and cloud controls appeared. Saving the unchanged profile showed syncing, then no pending writes. Reload preserved the account and returned to no pending writes. This confirms real Google sign-in, a live profile write acknowledged by the sync queue, and session restoration. Email/password remains covered by the enabled provider and successful SDK/UI emulator checks; no separate real email/password account was created. The user-revised goal is achieved. Earlier pending-Google statements below are chronological pre-verification evidence.
+FINAL LIVE VERIFICATION: On 2026-10-26 the user completed Google selection on the published GitHub Pages app. The account profile and cloud controls appeared. Saving the unchanged profile showed syncing, then no pending writes. Reload preserved the account and returned to no pending writes. This confirms real Google sign-in, a live profile write acknowledged by the sync queue, and session restoration. Email/password remains covered by the enabled provider and successful SDK/UI emulator checks; no separate real email/password account was created. The user-revised goal is achieved.
 
-The rebuilt software passes local checks and bounded browser use. The user removed Phone/SMS from scope to retain Spark. Email/Password and Google remain enabled; Phone is confirmed Disabled. Source commit e15d5b1ebceb90ba51680f82d00ff88524f88b45 was published successfully to GitHub Pages; real Google completion is the remaining live check.
+The rebuilt software passes local checks and bounded browser use. The user removed Phone/SMS from scope to retain Spark. Email/Password and Google remain enabled; Phone is confirmed Disabled. Source commit e15d5b1ebceb90ba51680f82d00ff88524f88b45 was published successfully to GitHub Pages; real Google completion was verified afterward.
 
 ## Automated evidence
+
+Product cleanup on 2026-10-26 removed unused starter assets, demo components, scaffold reports and three development-only inspection tools. The three unused CSVs were moved out of `public/` with unchanged SHA256 hashes. No remaining package version changed. After cleanup: 49 tests, strict TypeScript build, lint and Pages smoke pass; npm reports zero vulnerabilities. Lint retains its existing useJournal advisory and build retains its Firebase chunk-size warning. No Firebase logic or rules changed, so the earlier emulator evidence remains applicable; no new emulator run or browser visual certification is claimed for this file/dependency cleanup.
 
 | Check | Observed result |
 |---|---|
@@ -39,7 +41,7 @@ Edge was operated through the supported browser tool. The full overhaul checks b
 
 After removing SMS, fresh dark-mode local and email entry views were checked at 320 and 1440 widths. Measured scrollWidth equals clientWidth (305/305 for both narrow views, 1425/1425 for desktop email, 1440/1440 for desktop local). No Phone button remains. Screenshots/DOM evidence are in the tool transcript. Temporary viewport overrides were reset.
 
-The real Google chooser opened, but a completed login is not yet certified. The unauthorized-domain alert was observed on a 127.0.0.1 tab. The localhost tab remained pending after its popup disappeared. The app-key public Auth config confirms localhost and collide0412.github.io as allowed; 127.0.0.1 is absent. Continue real OAuth testing on the published URL to eliminate local-tab confusion.
+During earlier local testing, an unauthorized-domain alert occurred on 127.0.0.1, which is not an allowed Auth domain. The user subsequently completed Google sign-in on the published domain; the live cloud profile, successful save and authenticated reload are recorded above.
 
 ## Security and limits
 
@@ -51,6 +53,6 @@ No full WCAG, assistive-technology, real-device touch/DPR or Lighthouse certific
 
 ## Publication checkpoint
 
-Repository: collide0412/mam-web. Live URL: https://collide0412.github.io/mam-web/. Source commit: e15d5b1ebceb90ba51680f82d00ff88524f88b45. Workflow https://github.com/collide0412/mam-web/actions/runs/40270865304 completed successfully: install, lint, strict typecheck, 49 tests, build, Pages smoke and deploy. Live DOM script index-B8o8WbIe.js matches the CI output; CSS is index-DMyQXX0_.css and lazy Firebase is firebaseClient-mE5DALnY.js. A cached old PWA updated to the new UI after reload without clearing browser data. Local credentials/agent evidence were excluded from the commit. The user is completing Google selection from this published domain; no successful OAuth claim is made yet.
+Repository: collide0412/mam-web. Live URL: https://collide0412.github.io/mam-web/. Source commit: e15d5b1ebceb90ba51680f82d00ff88524f88b45. Workflow https://github.com/collide0412/mam-web/actions/runs/40270865304 completed successfully: install, lint, strict typecheck, 49 tests, build, Pages smoke and deploy. A cached old PWA updated to the new UI after reload without clearing browser data. Local credentials/agent evidence were excluded from the commit. Google sign-in was subsequently verified live, as recorded above.
 
-The public Auth configuration was also fetched using the key extracted in memory from that live compiled asset: HTTP 200, project number 837818293257, collide0412.github.io allowed. No key/token was printed or committed. The original old public tab was refreshed after confirming no form values were entered, releasing its older database connection. Temporary preview servers were stopped; the live page and chooser remain open for user sign-in.
+The public Auth configuration was also fetched using the key extracted in memory from that live compiled asset: HTTP 200, project number 837818293257, collide0412.github.io allowed. No key/token was printed or committed. The original old public tab was refreshed after confirming no form values were entered, releasing its older database connection. Temporary preview servers and emulators were stopped.

@@ -12,15 +12,15 @@ export default defineConfig({
       manifest: {
         name: 'Măm',
         short_name: 'Măm',
-        description: 'Măm — calorie tracker và gợi ý ăn uống cho người Việt.',
-        theme_color: '#d97755',
-        background_color: '#f8f5f2',
+        description: 'Măm — nhật ký ăn uống riêng tư, dùng được ngoại tuyến.',
+        theme_color: '#276349',
+        background_color: '#f6f7f2',
         display: 'standalone',
         start_url: './',
         scope: './',
         icons: [
-          { src: 'icons/icon-192.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'any' },
-          { src: 'icons/icon-512.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'any' },
+          { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+          { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
         ],
       },
       workbox: {

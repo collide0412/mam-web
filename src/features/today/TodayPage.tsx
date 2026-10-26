@@ -1,86 +1,17 @@
+import { Link } from 'react-router-dom'
 import type { MealEntry, Profile } from '../../types'
-import { formatCurrency, formatMacro, getTodayKey } from '../../utils/nutrition'
-
-const moodText = ['Chào buổi tối', 'Chào buổi trưa', 'Chào buổi sáng']
-
-type TodayPageProps = {
-  profile: Profile
-  meals: MealEntry[]
-  onAddFood: () => void
-}
-
-export function TodayPage({ profile, meals, onAddFood }: TodayPageProps) {
-  const todayMeals = meals.filter((meal) => getTodayKey(new Date(meal.timestamp)) === getTodayKey())
-  const totals = todayMeals.reduce(
-    (acc, meal) => {
-      acc.calories += meal.calories
-      acc.protein += meal.protein
-      acc.carbs += meal.carbs
-      acc.fat += meal.fat
-      return acc
-    },
-    { calories: 0, protein: 0, carbs: 0, fat: 0 },
-  )
-
-  const remaining = Math.max(profile.calorieGoal - totals.calories, 0)
-  const progress = Math.min((totals.calories / profile.calorieGoal) * 100, 100)
-
-  return (
-    <main className="page-shell">
-      <section className="hero-card">
-        <div className="eyebrow">{moodText[1]}</div>
-        <h1>Chào buổi tối, {profile.name}</h1>
-        <div className="hero-metrics">
-          <div>
-            <span className="metric-value">{formatMacro(totals.calories)} / {formatMacro(profile.calorieGoal)} kcal</span>
-            <small>Còn khoảng {formatMacro(remaining)} kcal</small>
-          </div>
-          <button type="button" className="primary-button" onClick={onAddFood}>+ Thêm món ăn</button>
-        </div>
-        <div className="progress-bar" aria-label="Tiến độ calo hôm nay">
-          <span style={{ width: `${progress}%` }} />
-        </div>
-      </section>
-
-      <section className="summary-grid">
-        <div className="mini-card">
-          <span>Protein</span>
-          <strong>{totals.protein} / {profile.proteinGoal} g</strong>
-        </div>
-        <div className="mini-card">
-          <span>Carb</span>
-          <strong>{totals.carbs} / {profile.carbsGoal} g</strong>
-        </div>
-        <div className="mini-card">
-          <span>Fat</span>
-          <strong>{totals.fat} / {profile.fatGoal} g</strong>
-        </div>
-      </section>
-
-      <section className="feature-card">
-        <div className="feature-head">
-          <h2>Bây giờ ăn gì?</h2>
-          <span className="badge">Gợi ý ngay</span>
-        </div>
-        <p>“Em ăn gì cũng được.” Cho đến khi món được đề xuất.</p>
-        <button type="button" className="secondary-button">Ngẫu nhiên & phù hợp</button>
-      </section>
-
-      <section className="list-panel">
-        <h3>Hôm nay</h3>
-        {todayMeals.length === 0 ? <p className="muted">Bạn chưa ghi bữa ăn nào hôm nay.</p> : todayMeals.map((meal) => (
-          <div key={meal.id} className="meal-row">
-            <div>
-              <strong>{meal.foodName}</strong>
-              <small>{meal.mealType}</small>
-            </div>
-            <div className="meal-meta">
-              <span>{meal.calories} kcal</span>
-              {profile.currency === 'KRW' ? formatCurrency(meal.calories * 12, 'KRW') : formatCurrency(meal.calories * 350, 'VND')}
-            </div>
-          </div>
-        ))}
-      </section>
-    </main>
-  )
+import { getTodayKey } from '../../utils/nutrition'
+import { Icon } from '../../components/Icon'
+import { MealList } from '../../components/MealList'
+import { NutritionSummary } from '../../components/NutritionSummary'
+export function TodayPage({ profile, meals, onAddFood }: { profile: Profile; meals: MealEntry[]; onAddFood: () => void }) {
+  const today = new Date()
+  const todayMeals = meals.filter(meal => getTodayKey(new Date(meal.timestamp)) === getTodayKey(today))
+  return <section className="page-shell">
+    <div className="page-heading"><div><p className="eyebrow">{today.toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long' })}</p><h1>Hôm nay của {profile.name}</h1><p className="muted">Từng bữa ăn, một chút hiểu mình hơn.</p></div><button className="primary-button" onClick={onAddFood}><Icon name="plus" size={20} />Ghi món ăn</button></div>
+    <NutritionSummary meals={todayMeals} profile={profile} />
+    <div className="today-layout"><section className="panel"><div className="section-heading"><h2>Các bữa đã ghi</h2><Link className="text-button" to="/diary">Xem nhật ký <Icon name="arrow-right" size={20} /></Link></div>
+      {todayMeals.length ? <MealList meals={todayMeals} /> : <div className="empty-state"><span className="empty-symbol"><Icon name="book" size={32} /></span><h3>Bắt đầu từ bữa ăn gần nhất</h3><p className="muted">Chọn món và khẩu phần. Bạn có thể sửa lại bất cứ lúc nào.</p><button className="primary-button" onClick={onAddFood}>Ghi món đầu tiên</button></div>}
+    </section><aside className="daily-aside"><p className="eyebrow">Một nhịp nhỏ mỗi ngày</p><h2>Ghi đều, hiểu rõ hơn.</h2><p>Nhật ký thuộc về bạn. Mục tiêu có thể thay đổi cùng thói quen của bạn.</p><Link className="text-button" to="/profile">Điều chỉnh mục tiêu <Icon name="arrow-right" size={20} /></Link><hr /><p className="fine-print muted">Các số dinh dưỡng là ước tính theo khẩu phần, chưa được kiểm chứng. Đây là công cụ ghi chép cá nhân.</p></aside></div>
+  </section>
 }

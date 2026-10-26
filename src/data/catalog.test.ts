@@ -1,49 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import type { MealEntry, Profile } from '../types'
-import { getRecommendationCandidates, searchFoods } from './catalog'
-
-const baseProfile: Profile = {
-  id: 'linh',
-  name: 'Linh',
-  region: 'Hồ Chí Minh',
-  language: 'vi',
-  currency: 'VND',
-  calorieGoal: 1650,
-  proteinGoal: 90,
-  carbsGoal: 210,
-  fatGoal: 58,
-  allergens: [],
-  dietary: ['ít cay'],
-}
-
-describe('catalog recommendations', () => {
-  it('recommends foods aligned with the active profile and de-prioritizes repeated meals', () => {
-    const repeatedMeals: MealEntry[] = [{
-      id: 'm1',
-      profileId: 'linh',
-      foodId: 'pho-bo',
-      foodName: 'Phở bò',
-      quantity: 1,
-      serving: '1 tô',
-      mealType: 'Lunch',
-      calories: 420,
-      protein: 28,
-      carbs: 46,
-      fat: 14,
-      timestamp: new Date().toISOString(),
-    }]
-
-    const picks = getRecommendationCandidates(baseProfile, repeatedMeals)
-
-    expect(picks.length).toBeGreaterThan(0)
-    expect(picks[0]?.id).not.toBe('pho-bo')
-    expect(picks.some((food) => food.name.toLowerCase().includes('phở'))).toBe(true)
+import { foodCatalog, searchFoods } from './catalog'
+describe('catalog search', () => {
+  it('matches accentless Vietnamese including crossed d and all query tokens', () => {
+    expect(searchFoods('com tam')[0]?.id).toBe('com-tam-suon')
+    expect(searchFoods('duong')[0]?.id).toBe('tra-sua')
+    expect(searchFoods('bo pho').every(food => food.name.includes('Phở bò'))).toBe(true)
   })
-
-  it('finds food entries by common Vietnamese names', () => {
-    const results = searchFoods('cơm tấm')
-
-    expect(results.length).toBeGreaterThan(0)
-    expect(results[0]?.name).toBe('Cơm tấm sườn bì chả')
+  it('never returns unrelated foods because of favorites or recent history', () => {
+    expect(searchFoods('zzzz not a food', ['pho-bo'], ['banh-mi-trung'])).toEqual([])
+    expect(searchFoods('salad', ['pho-bo'], ['banh-mi-trung']).map(food => food.id)).toEqual(['salad-ga'])
+  })
+  it('shows the whole offline catalog with actual recent foods first', () => {
+    const found = searchFoods('', [], ['tra-sua', 'banh-cuon'])
+    expect(found).toHaveLength(foodCatalog.length)
+    expect(found.slice(0, 2).map(food => food.id)).toEqual(['tra-sua', 'banh-cuon'])
   })
 })

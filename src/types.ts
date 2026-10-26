@@ -13,9 +13,7 @@ export type FoodItem = {
   carbs: number
   fat: number
   serving: string
-  price: number
   source: string
-  confidence: number
   meal: string
   tags: string[]
 }

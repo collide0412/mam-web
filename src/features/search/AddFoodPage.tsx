@@ -1,104 +1,32 @@
-import { useMemo, useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { searchFoods } from '../../data/catalog'
 import type { FoodItem, MealEntry, Profile } from '../../types'
-import { calculateMealNutrition } from '../../utils/nutrition'
-
-type AddFoodPageProps = {
-  profile?: Profile
-  meals?: MealEntry[]
-  onAddMeal: (payload: Omit<MealEntry, 'id' | 'profileId' | 'timestamp'> & { foodId: string }) => Promise<void>
-}
-
-export function AddFoodPage({ onAddMeal }: AddFoodPageProps) {
-  const [query, setQuery] = useState('phở bò')
+import { Icon } from '../../components/Icon'
+import { MealEditor } from '../../components/MealEditor'
+import { draftFromFood } from '../../components/mealDraft'
+import type { MealDraft } from '../../components/MealEditor'
+import { ManualMeal } from './ManualMeal'
+export function AddFoodPage({ meals = [], onAddMeal }: { profile?: Profile; meals?: MealEntry[]; onAddMeal: (payload: MealDraft) => Promise<void> }) {
+  const [query, setQuery] = useState('')
   const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null)
-  const [quantity, setQuantity] = useState(1)
-  const [mealType, setMealType] = useState<MealEntry['mealType']>('Lunch')
-  const [notes, setNotes] = useState('')
-
-  const results = useMemo(() => searchFoods(query, [], []), [query])
-
-  const handleSave = async () => {
-    if (!selectedFood) return
-    const nutrition = calculateMealNutrition(selectedFood, quantity)
-    await onAddMeal({
-      foodId: selectedFood.id,
-      foodName: selectedFood.name,
-      quantity,
-      serving: selectedFood.serving,
-      mealType,
-      calories: nutrition.calories,
-      protein: nutrition.protein,
-      carbs: nutrition.carbs,
-      fat: nutrition.fat,
-      notes,
-    })
-    setNotes('')
-  }
-
-  return (
-    <main className="page-shell">
-      <section className="search-panel">
-        <label className="search-box">
-          <span>Tìm món ăn</span>
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="phở bò, 200g ức gà..." />
-        </label>
+  const [manual, setManual] = useState(false)
+  const searchInput = useRef<HTMLInputElement>(null)
+  const recentIds = [...new Set([...meals].sort((a, b) => b.timestamp.localeCompare(a.timestamp)).map(meal => meal.foodId))]
+  const results = searchFoods(query, [], recentIds)
+  return <section className="page-shell">
+    <div className="page-heading"><div><p className="eyebrow">Một bữa ăn, vài thao tác</p><h1>Hôm nay bạn ăn gì?</h1><p className="muted">Tìm món, chọn khẩu phần rồi lưu vào nhật ký.</p></div><button className="secondary-button" onClick={() => { setManual(true); setSelectedFood(null) }}>Tự nhập món</button></div>
+    {manual ? <ManualMeal initialName={query} onSave={onAddMeal} onCancel={() => setManual(false)} /> : <>
+    <label className="search-field"><Icon name="search" /><span className="sr-only">Tìm món ăn</span><input ref={searchInput} type="search" value={query} onChange={event => { setQuery(event.target.value); setSelectedFood(null) }} placeholder="Tìm phở bò, cơm tấm, salad…" /></label>
+    <div className={`search-layout${selectedFood ? ' has-selection' : ''}`}>
+      {selectedFood && <aside className="panel editor-panel"><MealEditor key={selectedFood.id} initial={draftFromFood(selectedFood)} onSave={onAddMeal} onCancel={() => { setSelectedFood(null); searchInput.current?.focus() }} /><Link className="text-button" to={`/food/${selectedFood.id}`}>Thông tin món ăn <Icon name="arrow-right" size={20} /></Link></aside>}
+      <section className="panel search-results"><div className="section-heading"><h2>{query.trim() ? 'Kết quả tìm kiếm' : 'Danh mục món ăn'}</h2><span className="muted">{results.length} món</span></div>
+        {!query.trim() && recentIds.length > 0 && <p className="muted fine-print">Món bạn đã ghi gần đây được xếp trước.</p>}
+        {results.length ? <div className="food-list">{results.map(food => <button key={food.id} type="button" className="food-row" aria-pressed={selectedFood?.id === food.id} onClick={() => setSelectedFood(food)}><span className="food-symbol"><Icon name="leaf" size={20} /></span><span className="food-description"><strong>{food.name}</strong><small>{food.serving} · {food.category}</small></span><span className="food-energy">{food.calories}<small>kcal</small></span><Icon name="plus" size={20} /></button>)}</div> : <div className="empty-state"><h3>Chưa tìm thấy món này</h3><p className="muted">Thử tên ngắn hơn hoặc bỏ dấu tiếng Việt.</p><button className="secondary-button" onClick={() => setQuery('')}>Xem tất cả món</button></div>}
+        <p className="catalog-note muted">Danh mục ngoại tuyến · Dinh dưỡng ước tính, chưa được kiểm chứng.</p>
       </section>
-
-      <div className="search-layout">
-        <section className="list-panel">
-          <h3>Gần đây</h3>
-          {results.map((food) => (
-            <button key={food.id} type="button" className="food-row" onClick={() => setSelectedFood(food)}>
-              <div>
-                <strong>{food.name}</strong>
-                <small>{food.category}</small>
-              </div>
-              <span>{food.calories} kcal</span>
-            </button>
-          ))}
-        </section>
-
-        <aside className="detail-panel">
-          {selectedFood ? (
-            <>
-              <div className="detail-heading">
-                <h2>{selectedFood.name}</h2>
-                <Link to={`/food/${selectedFood.id}`}>Xem chi tiết</Link>
-              </div>
-              <div className="field-row">
-                <label>
-                  Khẩu phần
-                  <input type="number" min={1} value={quantity} onChange={(event) => setQuantity(Number(event.target.value) || 1)} />
-                </label>
-                <label>
-                  Bữa
-                  <select value={mealType} onChange={(event) => setMealType(event.target.value as MealEntry['mealType'])}>
-                    <option value="Breakfast">Breakfast</option>
-                    <option value="Lunch">Lunch</option>
-                    <option value="Dinner">Dinner</option>
-                    <option value="Snack">Snack</option>
-                  </select>
-                </label>
-              </div>
-              <div className="nutrition-grid">
-                <div><span>Calories</span><strong>{calculateMealNutrition(selectedFood, quantity).calories}</strong></div>
-                <div><span>Protein</span><strong>{calculateMealNutrition(selectedFood, quantity).protein}g</strong></div>
-                <div><span>Carbs</span><strong>{calculateMealNutrition(selectedFood, quantity).carbs}g</strong></div>
-                <div><span>Fat</span><strong>{calculateMealNutrition(selectedFood, quantity).fat}g</strong></div>
-              </div>
-              <label className="notes-field">
-                Ghi chú
-                <textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Không hành, ít nước, thêm trứng..." />
-              </label>
-              <button type="button" className="primary-button" onClick={handleSave}>Lưu món ăn</button>
-            </>
-          ) : (
-            <div className="empty-box">Chọn món ăn để xem mô tả và lưu bữa ăn.</div>
-          )}
-        </aside>
-      </div>
-    </main>
-  )
+      {!selectedFood && <aside className="daily-aside search-hint"><p className="eyebrow">Ghi đúng khẩu phần của bạn</p><h2>Một nửa tô? Vẫn ghi được.</h2><p>Chọn món để điều chỉnh số khẩu phần, bữa ăn và thời gian. Những ngày trước cũng có thể ghi lại.</p><Icon name="leaf" size={48} /></aside>}
+    </div>
+    </>}
+  </section>
 }

@@ -34,6 +34,7 @@ firebase-debug.log
 .agents/
 .claude/
 skills-lock.json
+.omo/evidence/
 
 # Editor directories and files
 .vscode/*

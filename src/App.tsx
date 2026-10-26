@@ -1,320 +1,143 @@
-import { useEffect, useMemo, useState } from 'react'
-import type { FormEvent } from 'react'
-import { NavLink, Route, Routes } from 'react-router-dom'
-import { flushPendingSync, getAppLocked, getIdentity, getMealsForProfile, getProfiles, saveMeal, saveProfile, setAppLocked, setupIdentity, verifyIdentity } from './db/store'
-import { AddFoodPage } from './features/search/AddFoodPage'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { TodayPage } from './features/today/TodayPage'
+import { AddFoodPage } from './features/search/AddFoodPage'
 import { DiaryPage } from './features/diary/DiaryPage'
 import { FoodDetailPage } from './features/food-detail/FoodDetailPage'
 import { RecommendPage } from './features/recommendations/RecommendPage'
-import { TogetherPage } from './features/together/TogetherPage'
-import type { MealEntry, Profile } from './types'
-import { firebaseEnabled } from './firebase'
-import { register, signIn, signInWithGoogle } from './firebaseAuth'
-import { getCloudProfile } from './firebaseStore'
+import { ProfilePage } from './features/account/ProfilePage'
+import { IdentityGate } from './features/auth/IdentityGate'
+import { Icon } from './components/Icon'
+import type { IconName } from './components/Icon'
+import type { MealEntry } from './types'
+import { getIdentity } from './db/store'
+import { finishGuestImport, pendingGuestImport, prepareGuestImport } from './features/account/guestImport'
+import { useJournal } from './useJournal'
 
-const defaultProfile: Profile = {
-  id: 'local-profile',
-  name: 'Bạn',
-  region: 'Việt Nam',
-  language: 'vi',
-  currency: 'VND',
-  calorieGoal: 1650,
-  proteinGoal: 90,
-  carbsGoal: 210,
-  fatGoal: 58,
-  allergens: [],
-  dietary: [],
-}
-
-function IdentityGate({ onAuthenticated }: { onAuthenticated: () => void }) {
-  const [hasIdentity, setHasIdentity] = useState(false)
-  const [ready, setReady] = useState(false)
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [pin, setPin] = useState('')
-  const [password, setPassword] = useState('')
-  const [cloudMode, setCloudMode] = useState<'signin' | 'register'>('signin')
-  const [error, setError] = useState('')
-
-  useEffect(() => {
-    void getIdentity().then((identity) => {
-      setHasIdentity(Boolean(identity))
-      setReady(true)
-    })
-  }, [])
-
-  if (!ready) return <main className="identity-shell"><p>Đang mở Măm…</p></main>
-
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setError('')
-    if (!hasIdentity && (!firebaseEnabled || cloudMode === 'register') && name.trim().length < 2) {
-      setError('Hãy nhập tên để cá nhân hóa trải nghiệm.')
-      return
-    }
-    if (!/^\d{6}$/.test(pin)) {
-      setError('Mã mở khóa cần có đúng 6 chữ số.')
-      return
-    }
-
-    if (firebaseEnabled && !hasIdentity) {
-      if (!email || password.length < 6) {
-        setError('Email hợp lệ và mật khẩu cần có ít nhất 6 ký tự.')
-        return
-      }
-      try {
-        const user = cloudMode === 'register' ? await register(email, password) : await signIn(email, password)
-        const existingProfile = cloudMode === 'signin' ? await getCloudProfile(user.uid) : null
-        await setupIdentity(cloudMode === 'register' ? name : (user.displayName ?? email.split('@')[0]), pin, user.uid, existingProfile ?? undefined)
-      } catch {
-        setError('Không thể xác thực. Kiểm tra email, mật khẩu và Firebase configuration.')
-        return
-      }
-    } else if (hasIdentity) {
-      if (!(await verifyIdentity(pin))) {
-        setError('Mã mở khóa chưa đúng. Hãy thử lại.')
-        return
-      }
-    } else {
-      await setupIdentity(name, pin)
-    }
-    onAuthenticated()
-  }
-
-  const handleGoogleSignIn = async () => {
-    setError('')
-    if (!/^\d{6}$/.test(pin)) {
-      setError('Hãy nhập mã khóa ứng dụng gồm đúng 6 chữ số trước.')
-      return
-    }
-    try {
-      const user = await signInWithGoogle()
-      const existingProfile = await getCloudProfile(user.uid)
-      await setupIdentity(user.displayName ?? user.email?.split('@')[0] ?? 'Bạn', pin, user.uid, existingProfile ?? undefined)
-      onAuthenticated()
-    } catch {
-      setError('Không thể đăng nhập bằng Google. Kiểm tra Authorized domains và cấu hình Firebase.')
-    }
-  }
-
-  return (
-    <main className="identity-shell">
-      <section className="identity-card" aria-labelledby="identity-title">
-        <div className="brand-mark" aria-hidden="true">M</div>
-        <p className="eyebrow">Măm riêng tư</p>
-        <h1 id="identity-title">{hasIdentity ? 'Chào bạn trở lại' : 'Bắt đầu không gian riêng của bạn'}</h1>
-        <p className="identity-copy">Email và mật khẩu dùng để đồng bộ tài khoản. Mã khóa ứng dụng giúp mở Măm nhanh và giữ nhật ký riêng trên thiết bị này.</p>
-        <form onSubmit={(event) => void handleSubmit(event)}>
-          {firebaseEnabled && !hasIdentity && (
-            <>
-              {cloudMode === 'register' && (
-                <label className="field-block">
-                  <span>Tên của bạn</span>
-                  <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Ví dụ: Mai" autoComplete="name" required />
-                </label>
-              )}
-              <label className="field-block">
-                <span>Email</span>
-                <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required />
-              </label>
-              <label className="field-block">
-                <span>Mật khẩu tài khoản</span>
-                <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={cloudMode === 'register' ? 'new-password' : 'current-password'} required />
-              </label>
-              <button type="button" className="secondary-button google-button" onClick={() => void handleGoogleSignIn()}>
-                Tiếp tục với Google
-              </button>
-              <button type="button" className="text-button" onClick={() => setCloudMode(cloudMode === 'register' ? 'signin' : 'register')}>
-                {cloudMode === 'register' ? 'Đã có tài khoản? Đăng nhập' : 'Tạo tài khoản mới'}
-              </button>
-            </>
-          )}
-          {!firebaseEnabled && !hasIdentity && (
-            <label className="field-block">
-              <span>Tên của bạn</span>
-              <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Ví dụ: Mai" autoComplete="name" required />
-            </label>
-          )}
-          <label className="field-block">
-            <span>Mã khóa ứng dụng 6 chữ số</span>
-            <input type="password" value={pin} onChange={(event) => setPin(event.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" autoComplete="off" pattern="\d{6}" maxLength={6} required />
-          </label>
-          {error && <p className="form-error" role="alert">{error}</p>}
-          <button type="submit" className="primary-button">{hasIdentity ? 'Mở khóa Măm' : 'Tạo không gian riêng'}</button>
-        </form>
-      </section>
-    </main>
-  )
-}
+const navigation: { to: string; label: string; icon: IconName }[] = [
+  { to: '/', label: 'Hôm nay', icon: 'home' },
+  { to: '/add', label: 'Ghi món', icon: 'plus' },
+  { to: '/diary', label: 'Nhật ký', icon: 'book' },
+  { to: '/profile', label: 'Cá nhân', icon: 'user' },
+]
 
 function App() {
-  const [profile, setProfile] = useState<Profile>(defaultProfile)
-  const [meals, setMeals] = useState<MealEntry[]>([])
+  const journal = useJournal()
+  const { profile, identity, meals } = journal
   const [offline, setOffline] = useState(!navigator.onLine)
-  const [draftName, setDraftName] = useState(defaultProfile.name)
-  const [identity, setIdentity] = useState<{ profileId: string } | null>(null)
-  const [identityReady, setIdentityReady] = useState(false)
-  const [profileReady, setProfileReady] = useState(false)
-  const [locked, setLocked] = useState(false)
-  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('mam-theme') === 'dark')
+  const [dark, setDark] = useState(() => {
+    const saved = localStorage.getItem('mam-theme')
+    return saved === 'dark' || (!saved && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+  })
+  const [connecting, setConnecting] = useState(false)
+  const [feedback, setFeedback] = useState({ owner: '', text: '' })
+  const notice = feedback.owner === identity?.profileId ? feedback.text : ''
+  const setNotice = (text: string) => setFeedback({ owner: identity?.profileId ?? '', text })
+  const [undone, setUndone] = useState<MealEntry | null>(null)
+  const [undoBusy, setUndoBusy] = useState(false)
+  const importSnapshot = useRef<MealEntry[]>([])
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  const importPending = Boolean(identity?.cloud && pendingGuestImport(identity.profileId))
 
   useEffect(() => {
-    void Promise.all([getIdentity(), getAppLocked()]).then(([storedIdentity, isLocked]) => {
-      setIdentity(storedIdentity ? { profileId: storedIdentity.profileId } : null)
-      setLocked(isLocked)
-      setIdentityReady(true)
-    })
+    const update = () => setOffline(!navigator.onLine)
+    window.addEventListener('online', update)
+    window.addEventListener('offline', update)
+    return () => { window.removeEventListener('online', update); window.removeEventListener('offline', update) }
   }, [])
 
   useEffect(() => {
-    if (!identity) return
-    void (async () => {
-      const storedProfiles = await getProfiles()
-      const activeProfile = storedProfiles.find((item) => item.id === identity.profileId)
-      if (!activeProfile) {
-        setIdentity(null)
-        return
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+    localStorage.setItem('mam-theme', dark ? 'dark' : 'light')
+  }, [dark])
+
+  useLayoutEffect(() => {
+    document.documentElement.lang = 'vi'
+    const label = navigation.find((item) => item.to === location.pathname)?.label ?? 'Món ăn'
+    document.title = `${label} · Măm`
+    const heading = document.querySelector<HTMLElement>('.content-panel h1')
+    if (heading) { heading.tabIndex = -1; heading.focus({ preventScroll: true }) }
+    window.scrollTo(0, 0)
+  }, [location.pathname, journal.ready])
+
+  const connect = (copy: boolean) => {
+    importSnapshot.current = copy && identity?.cloud === false ? meals.map((entry) => ({ ...entry, id: crypto.randomUUID() })) : []
+    setConnecting(true)
+    setNotice('')
+  }
+
+  const authenticated = async () => {
+    if (connecting && importSnapshot.current.length > 0) {
+      const target = await getIdentity()
+      if (target?.cloud) {
+        try {
+          prepareGuestImport(target.profileId, importSnapshot.current)
+          await finishGuestImport(target.profileId)
+          setFeedback({ owner: target.profileId, text: 'Đã sao chép nhật ký vào tài khoản. Bản gốc vẫn lưu trên thiết bị.' })
+        } catch {
+          setFeedback({ owner: target.profileId, text: 'Chưa sao chép hết nhật ký. Bản gốc vẫn còn trên thiết bị. Dùng Tiếp tục sao chép để thử lại.' })
+        }
+        importSnapshot.current = []
       }
-      setProfile(activeProfile)
-      setDraftName(activeProfile.name)
-      setMeals(await getMealsForProfile(activeProfile.id))
-      setProfileReady(true)
-    })()
-  }, [identity])
-
-  useEffect(() => {
-    document.documentElement.lang = profile.language
-  }, [profile.language])
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = darkMode ? 'dark' : 'light'
-    localStorage.setItem('mam-theme', darkMode ? 'dark' : 'light')
-  }, [darkMode])
-
-  useEffect(() => {
-    const handleOnline = () => {
-      setOffline(false)
-      void flushPendingSync()
     }
-    const handleOffline = () => setOffline(true)
-    window.addEventListener('online', handleOnline)
-    window.addEventListener('offline', handleOffline)
-    return () => {
-      window.removeEventListener('online', handleOnline)
-      window.removeEventListener('offline', handleOffline)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!identity) return
-    void flushPendingSync()
-    const retryTimer = window.setInterval(() => void flushPendingSync(), 30_000)
-    return () => window.clearInterval(retryTimer)
-  }, [identity])
-
-  const handleAddMeal = async (payload: Omit<MealEntry, 'id' | 'profileId' | 'timestamp'> & { foodId: string }) => {
-    const entry: MealEntry = {
-      ...payload,
-      id: crypto.randomUUID(),
-      profileId: profile.id,
-      timestamp: new Date().toISOString(),
-    }
-    await saveMeal(entry)
-    setMeals((current) => [entry, ...current])
+    setConnecting(false)
+    await journal.unlock()
+    navigate('/')
   }
 
-  const handleSaveCurrentProfile = async () => {
-    const nextProfile: Profile = {
-      ...profile,
-      name: draftName.trim() || profile.name,
-    }
-
-    await saveProfile(nextProfile)
-    setProfile(nextProfile)
-    setMeals(await getMealsForProfile(nextProfile.id))
+  const remove = async (entry: MealEntry) => {
+    await journal.removeMeal(entry)
+    setUndone(entry)
+    setNotice(`Đã xóa ${entry.foodName}.`)
   }
 
-  const handleLock = async () => {
-    await setAppLocked(true)
-    setLocked(true)
+  const undo = async () => {
+    if (!undone || undoBusy) return
+    setUndoBusy(true)
+    try { await journal.updateMeal(undone); setUndone(null); setNotice('Đã khôi phục món ăn.') }
+    catch (failure) { setNotice(failure instanceof Error ? failure.message : 'Chưa khôi phục được. Hãy thử lại.') }
+    finally { setUndoBusy(false) }
   }
 
-  const handleUnlock = async () => {
-    await setAppLocked(false)
-    setLocked(false)
+  const retryImport = async () => {
+    if (!identity?.cloud || undoBusy) return
+    setUndoBusy(true)
+    try { await finishGuestImport(identity.profileId); setNotice('Đã hoàn tất sao chép nhật ký.') }
+    catch { setNotice('Chưa sao chép được. Hãy kiểm tra bộ nhớ thiết bị rồi thử lại.') }
+    finally { setUndoBusy(false) }
   }
 
-  const navItems = useMemo(
-    () => [
-      { to: '/', label: 'Hôm nay' },
-      { to: '/add', label: 'Thêm món' },
-      { to: '/diary', label: 'Nhật ký' },
-      { to: '/profile', label: 'Cá nhân' },
-    ],
-    [],
-  )
+  if (!journal.ready) return <main className="identity-shell"><p role="status">Đang mở nhật ký…</p></main>
+  if (journal.error && !profile) return <main className="identity-shell"><div className="panel"><h1>Chưa mở được nhật ký</h1><p role="alert">{journal.error}</p><button className="primary-button" onClick={() => void journal.open()}>Thử lại</button></div></main>
+  if (!identity || journal.locked || connecting) return <IdentityGate key={connecting ? 'connect' : 'unlock'} connecting={connecting} onCancel={connecting ? () => { setConnecting(false); importSnapshot.current = [] } : undefined} onAuthenticated={authenticated} />
+  if (!profile) return null
 
-  if (!identityReady || !identity || locked) return <IdentityGate onAuthenticated={() => void getIdentity().then((storedIdentity) => { setIdentity(storedIdentity ? { profileId: storedIdentity.profileId } : null); void handleUnlock() })} />
-  if (!profileReady) return <main className="identity-shell"><p>Đang tải dữ liệu riêng tư…</p></main>
-
-  return (
-    <div className="app-shell">
-      {offline && <div className="offline-banner">Đang offline</div>}
-      <header className="topbar">
-        <div className="brand-wrap">
-          <div className="brand-mark" aria-label="Măm brand">M</div>
-          <div>
-            <strong>Măm</strong>
-            <small>Calorie Tracker</small>
-          </div>
-        </div>
-        <button type="button" className="theme-toggle" onClick={() => setDarkMode((current) => !current)} aria-label={darkMode ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'}>
-          {darkMode ? '☀' : '☾'}
-        </button>
-      </header>
-
-      <main className="content-panel">
-        <Routes>
-          <Route path="/" element={<TodayPage profile={profile} meals={meals} onAddFood={() => window.location.hash = '#/add'} />} />
-          <Route path="/add" element={<AddFoodPage profile={profile} meals={meals} onAddMeal={handleAddMeal} />} />
-          <Route path="/food/:id" element={<FoodDetailPage profile={profile} onAddMeal={handleAddMeal} />} />
-          <Route path="/diary" element={<DiaryPage profile={profile} meals={meals} />} />
-          <Route path="/recommend" element={<RecommendPage profile={profile} meals={meals} />} />
-          <Route path="/together" element={<TogetherPage profile={profile} meals={meals} />} />
-          <Route
-            path="/profile"
-            element={
-              <div className="page-shell">
-                <section className="profile-card large" aria-label="Profile settings">
-                  <h1>Hồ sơ</h1>
-                  <p className="muted">Hồ sơ này gắn với tài khoản của bạn và được đồng bộ riêng tư trên các thiết bị.</p>
-                  <div className="profile-grid single-profile">
-                    <label className="field-block">
-                      <span>Tên hiển thị</span>
-                      <input value={draftName} onChange={(event) => setDraftName(event.target.value)} aria-label="Tên người dùng" />
-                    </label>
-                  </div>
-                  <div className="profile-actions">
-                    <button type="button" className="primary-button" onClick={() => void handleSaveCurrentProfile()}>Lưu hồ sơ</button>
-                    <button type="button" className="text-button" onClick={() => void handleLock()}>Khóa Măm</button>
-                  </div>
-                </section>
-              </div>
-            }
-          />
-        </Routes>
-      </main>
-
-      <nav className="bottom-nav" aria-label="Điều hướng chính">
-        {navItems.map((item) => (
-          <NavLink key={item.to} to={item.to} end={item.to === '/'} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} aria-label={item.label}>
-            {item.label}
-          </NavLink>
-        ))}
-      </nav>
-    </div>
-  )
+  return <div className="app-shell">
+    <a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Đến nội dung chính</a>
+    <header className="topbar">
+      <Link to="/" className="brand-wrap" aria-label="Măm — Hôm nay"><span className="brand-mark" aria-hidden="true"><Icon name="leaf" /></span><span className="brand-wordmark">Măm<span>Nhật ký ăn uống</span></span></Link>
+      <nav className="app-nav" aria-label="Điều hướng chính">{navigation.map((item) => <NavLink key={item.to} to={item.to} end={item.to === '/'} className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}><Icon name={item.icon} /><span>{item.label}</span></NavLink>)}</nav>
+      <button className="theme-toggle" onClick={() => setDark(!dark)} aria-label={dark ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'}><Icon name={dark ? 'sun' : 'moon'} /></button>
+    </header>
+    {offline && <div className="offline-banner" role="status">Đang ngoại tuyến · Bạn vẫn có thể ghi và sửa nhật ký trên thiết bị.</div>}
+    <main id="main-content" className="content-panel" tabIndex={-1}>
+      {journal.error && <p className="form-error" role="alert">{journal.error}</p>}
+      {importPending && <div className="status-message"><span>Còn nhật ký trên thiết bị đang chờ sao chép vào tài khoản này.</span><button className="secondary-button" disabled={undoBusy} onClick={() => void retryImport()}>Tiếp tục sao chép</button></div>}
+      {notice && <div className="status-message" role="status"><span>{notice}</span>{undone && <button className="text-button" disabled={undoBusy} onClick={() => void undo()}>{undoBusy ? 'Đang khôi phục…' : 'Hoàn tác xóa'}</button>}<button className="text-button" aria-label="Đóng thông báo" onClick={() => { setNotice(''); setUndone(null) }}><Icon name="close" /></button></div>}
+      <Routes>
+        <Route path="/" element={<TodayPage profile={profile} meals={meals} onAddFood={() => navigate('/add')} />} />
+        <Route path="/add" element={<AddFoodPage profile={profile} meals={meals} onAddMeal={journal.addMeal} />} />
+        <Route path="/food/:id" element={<FoodDetailPage profile={profile} onAddMeal={journal.addMeal} />} />
+        <Route path="/diary" element={<DiaryPage profile={profile} meals={meals} onUpdateMeal={journal.updateMeal} onDeleteMeal={remove} />} />
+        <Route path="/recommend" element={<RecommendPage profile={profile} meals={meals} />} />
+        <Route path="/together" element={<Navigate to="/recommend" replace />} />
+        <Route path="/profile" element={<ProfilePage key={profile.id} profile={profile} meals={meals} cloud={identity.cloud === true} hasPin={Boolean(identity.pinHash)} sync={journal.sync} onSave={journal.updateProfile} onLock={journal.lock} onConnect={connect} onRetry={journal.retry} onSignOut={async () => { await journal.signOut(); setUndone(null); setNotice(''); navigate('/') }} />} />
+        <Route path="*" element={<section className="page-shell"><h1>Không tìm thấy trang</h1><p>Đường dẫn này chưa có trong Măm.</p><Link className="primary-button" to="/">Về hôm nay</Link></section>} />
+      </Routes>
+    </main>
+  </div>
 }
 
 export default App

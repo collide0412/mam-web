@@ -1,7 +1,3 @@
-import { getApps, initializeApp } from 'firebase/app'
-import { getAuth } from 'firebase/auth'
-import { getFirestore } from 'firebase/firestore'
-
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -16,13 +12,22 @@ const requiredConfig = [
   firebaseConfig.apiKey,
   firebaseConfig.authDomain,
   firebaseConfig.projectId,
-  firebaseConfig.storageBucket,
-  firebaseConfig.messagingSenderId,
   firebaseConfig.appId,
 ].every(Boolean)
 export const firebaseEnabled = import.meta.env.VITE_FIREBASE_ENABLED === 'true' && requiredConfig
 
-const app = firebaseEnabled ? (getApps()[0] ?? initializeApp(firebaseConfig)) : null
+export type FirebaseServices = ReturnType<typeof import('./firebaseClient').createFirebaseServices>
+let services: Promise<FirebaseServices> | undefined
 
-export const firebaseAuth = app ? getAuth(app) : null
-export const firebaseDb = app ? getFirestore(app) : null
+export function getFirebaseServices(): Promise<FirebaseServices> {
+  if (!firebaseEnabled) return Promise.reject(new Error('Firebase chưa được cấu hình.'))
+  services ??= import('./firebaseClient').then((client) => client.createFirebaseServices(firebaseConfig)).catch((error: unknown) => {
+    services = undefined
+    throw error
+  })
+  return services
+}
+
+export function getLoadedFirebaseServices(): Promise<FirebaseServices> | undefined {
+  return services
+}

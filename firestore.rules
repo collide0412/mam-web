@@ -10,7 +10,7 @@ rules_version = '2';
 //
 // users/{uid}/meals/{mealId}
 //   id, profileId, foodId, foodName, quantity, serving, mealType,
-//   calories, protein, carbs, fat, timestamp, optional notes
+//   calories, protein, carbs, fat, timestamp, optional notes, optional deleted:true
 //
 // The web client stores timestamp as an ISO-8601 string, not a Firestore
 // timestamp. All profile and meal documents are private to the Firebase UID.
@@ -49,8 +49,42 @@ service cloud.firestore {
         data[field] <= maximum;
     }
 
+    // Pad with known-valid strings so every original element is checked without
+    // repeating length guards. matches() is string-only; other types fail closed.
     function validList(data, field, maximumSize) {
-      return data[field] is list && data[field].size() <= maximumSize;
+      let items = data[field];
+      let checked = items.concat(['x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x']);
+      return items is list && items.size() <= maximumSize &&
+        checked[0].matches('^[\\s\\S]{1,80}$') &&
+        checked[1].matches('^[\\s\\S]{1,80}$') &&
+        checked[2].matches('^[\\s\\S]{1,80}$') &&
+        checked[3].matches('^[\\s\\S]{1,80}$') &&
+        checked[4].matches('^[\\s\\S]{1,80}$') &&
+        checked[5].matches('^[\\s\\S]{1,80}$') &&
+        checked[6].matches('^[\\s\\S]{1,80}$') &&
+        checked[7].matches('^[\\s\\S]{1,80}$') &&
+        checked[8].matches('^[\\s\\S]{1,80}$') &&
+        checked[9].matches('^[\\s\\S]{1,80}$') &&
+        checked[10].matches('^[\\s\\S]{1,80}$') &&
+        checked[11].matches('^[\\s\\S]{1,80}$') &&
+        checked[12].matches('^[\\s\\S]{1,80}$') &&
+        checked[13].matches('^[\\s\\S]{1,80}$') &&
+        checked[14].matches('^[\\s\\S]{1,80}$') &&
+        checked[15].matches('^[\\s\\S]{1,80}$') &&
+        checked[16].matches('^[\\s\\S]{1,80}$') &&
+        checked[17].matches('^[\\s\\S]{1,80}$') &&
+        checked[18].matches('^[\\s\\S]{1,80}$') &&
+        checked[19].matches('^[\\s\\S]{1,80}$') &&
+        checked[20].matches('^[\\s\\S]{1,80}$') &&
+        checked[21].matches('^[\\s\\S]{1,80}$') &&
+        checked[22].matches('^[\\s\\S]{1,80}$') &&
+        checked[23].matches('^[\\s\\S]{1,80}$') &&
+        checked[24].matches('^[\\s\\S]{1,80}$') &&
+        checked[25].matches('^[\\s\\S]{1,80}$') &&
+        checked[26].matches('^[\\s\\S]{1,80}$') &&
+        checked[27].matches('^[\\s\\S]{1,80}$') &&
+        checked[28].matches('^[\\s\\S]{1,80}$') &&
+        checked[29].matches('^[\\s\\S]{1,80}$');
     }
 
     function validIsoTimestamp(data, field) {
@@ -76,7 +110,7 @@ service cloud.firestore {
           'calorieGoal', 'proteinGoal', 'carbsGoal', 'fatGoal',
           'allergens', 'dietary'
         ]) &&
-        profile.id is string && profile.id == userId &&
+        validString(profile, 'id', 1, 128) && profile.id == userId &&
         validString(profile, 'name', 1, 80) &&
         validString(profile, 'region', 1, 80) &&
         profile.language is string && profile.language in ['vi', 'en', 'ko'] &&
@@ -98,10 +132,10 @@ service cloud.firestore {
         hasOnly(meal, [
           'id', 'profileId', 'foodId', 'foodName', 'quantity', 'serving',
           'mealType', 'calories', 'protein', 'carbs', 'fat', 'timestamp',
-          'notes'
+          'notes', 'deleted'
         ]) &&
-        meal.id is string && meal.id == mealId &&
-        meal.profileId is string && meal.profileId == userId &&
+        validString(meal, 'id', 1, 128) && meal.id == mealId &&
+        validString(meal, 'profileId', 1, 128) && meal.profileId == userId &&
         validString(meal, 'foodId', 1, 120) &&
         validString(meal, 'foodName', 1, 160) &&
         validNumber(meal, 'quantity', 0.01, 100) &&
@@ -112,7 +146,8 @@ service cloud.firestore {
         validNumber(meal, 'carbs', 0, 10000) &&
         validNumber(meal, 'fat', 0, 10000) &&
         validIsoTimestamp(meal, 'timestamp') &&
-        (!meal.keys().hasAny(['notes']) || validString(meal, 'notes', 0, 1000));
+        (!meal.keys().hasAny(['notes']) || validString(meal, 'notes', 0, 1000)) &&
+        (!meal.keys().hasAny(['deleted']) || meal.deleted == true);
     }
 
     // =============================================================
@@ -121,9 +156,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow get: if isOwner(userId);
       allow list: if false;
-      allow create: if isOwner(userId) &&
-        validUserDocument(request.resource.data, userId);
-      allow update: if isOwner(userId) &&
+      allow create, update: if isOwner(userId) &&
         validUserDocument(request.resource.data, userId);
       allow delete: if isOwner(userId);
 
@@ -133,9 +166,7 @@ service cloud.firestore {
       match /meals/{mealId} {
         allow get: if isOwner(userId);
         allow list: if isOwner(userId);
-        allow create: if isOwner(userId) &&
-          validMeal(request.resource.data, userId, mealId);
-        allow update: if isOwner(userId) &&
+        allow create, update: if isOwner(userId) &&
           validMeal(request.resource.data, userId, mealId);
         allow delete: if isOwner(userId);
       }

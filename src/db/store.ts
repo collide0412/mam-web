@@ -1,242 +1,120 @@
-import { openDB, type DBSchema } from 'idb'
 import type { MealEntry, Profile } from '../types'
-import { firebaseAuth, firebaseEnabled } from '../firebase'
-import { getCloudMeals, getCloudProfile, saveCloudMeal, saveCloudProfile } from '../firebaseStore'
+import { firebaseEnabled } from '../firebase'
+import { boundedCloud, cloudUserId } from '../firebaseStore'
+import { validateMeal, validateProfile, type MealRecord } from '../domain/validation'
+import { dbPromise, mealQueueId, notifyDataChanges, type SyncQueueItem } from './database'
+import { getIdentity, hashPin, persistIdentity, saveSelectedProfileId, setAppLocked, type IdentityRecord } from './identity'
+import { scheduleSync } from './sync'
 
-interface MamDB extends DBSchema {
-  profiles: {
-    key: string
-    value: Profile
-  }
-  meals: {
-    key: string
-    value: MealEntry
-    indexes: { 'by-profile': string; 'by-date': string }
-  }
-  syncQueue: {
-    key: string
-    value: SyncQueueItem
-  }
-}
-
-const DB_NAME = 'mam-web-db'
-const DB_VERSION = 2
-const SELECTED_PROFILE_KEY = 'mam-selected-profile-id'
-const IDENTITY_KEY = 'mam-identity-v1'
-const LOCKED_KEY = 'mam-app-locked'
+export { dbPromise, subscribeDataChanges } from './database'
+export { getIdentity, getAppLocked, setAppLocked, getSelectedProfileId, saveSelectedProfileId, verifyIdentity, clearIdentity, type IdentityRecord } from './identity'
+export { flushPendingSync, getSyncStatus, refreshCloudProfile, retrySync } from './sync'
 
 export const defaultProfiles: Profile[] = []
-
-export type IdentityRecord = {
-  profileId: string
-  pinHash: string
-}
-
-type SyncQueueItem = {
-  id: string
-  kind: 'profile' | 'meal'
-  payload: Profile | MealEntry
-  attempts: number
-  updatedAt: string
-}
-
-export const dbPromise = openDB<MamDB>(DB_NAME, DB_VERSION, {
-  upgrade(db) {
-    if (!db.objectStoreNames.contains('profiles')) {
-      db.createObjectStore('profiles', { keyPath: 'id' })
-    }
-
-    if (!db.objectStoreNames.contains('meals')) {
-      const meals = db.createObjectStore('meals', { keyPath: 'id' })
-      meals.createIndex('by-profile', 'profileId')
-      meals.createIndex('by-date', 'timestamp')
-    }
-
-    if (!db.objectStoreNames.contains('syncQueue')) {
-      db.createObjectStore('syncQueue', { keyPath: 'id' })
-    }
-  },
-})
-
-export async function seedProfilesIfNeeded() {
-  return dbPromise
-}
+export async function seedProfilesIfNeeded() { return dbPromise }
 
 export async function getProfiles(): Promise<Profile[]> {
-  if (firebaseEnabled && firebaseAuth?.currentUser) {
-    try {
-      const cloudProfile = await getCloudProfile(firebaseAuth.currentUser.uid)
-      if (cloudProfile) return [cloudProfile]
-    } catch { }
-  }
   const db = await dbPromise
-  const profiles = await db.getAll('profiles')
-  if (await getIdentity()) return profiles
-  return profiles.filter((profile) => profile.id !== 'linh' && profile.id !== 'an')
-}
-
-export async function saveProfile(profile: Profile): Promise<void> {
-  const db = await dbPromise
-  await db.put('profiles', profile)
-  if (firebaseEnabled && firebaseAuth?.currentUser) {
-    try {
-      await saveCloudProfile(firebaseAuth.currentUser.uid, profile)
-    } catch {
-      await queueSync({ id: `profile:${profile.id}`, kind: 'profile', payload: profile })
-    }
-  }
-}
-
-export async function getSelectedProfileId(): Promise<string | null> {
-  if (typeof window === 'undefined') {
-    return null
-  }
-
-  return window.localStorage.getItem(SELECTED_PROFILE_KEY)
-}
-
-export async function saveSelectedProfileId(profileId: string): Promise<void> {
-  if (typeof window !== 'undefined') {
-    window.localStorage.setItem(SELECTED_PROFILE_KEY, profileId)
-  }
-}
-
-export async function getAppLocked(): Promise<boolean> {
-  return typeof window !== 'undefined' && window.localStorage.getItem(LOCKED_KEY) === 'true'
-}
-
-export async function setAppLocked(locked: boolean): Promise<void> {
-  if (typeof window !== 'undefined') {
-    window.localStorage.setItem(LOCKED_KEY, String(locked))
-  }
-}
-
-async function hashPin(pin: string): Promise<string> {
-  const bytes = new TextEncoder().encode(pin)
-  const digest = await crypto.subtle.digest('SHA-256', bytes)
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
-}
-
-export async function getIdentity(): Promise<IdentityRecord | null> {
-  if (typeof window === 'undefined') return null
-
-  const stored = window.localStorage.getItem(IDENTITY_KEY)
-  if (!stored) return null
-
-  try {
-    return JSON.parse(stored) as IdentityRecord
-  } catch {
-    window.localStorage.removeItem(IDENTITY_KEY)
-    return null
-  }
-}
-
-export async function setupIdentity(name: string, pin: string, profileId: string = crypto.randomUUID(), existingProfile?: Profile): Promise<IdentityRecord> {
-  const profile: Profile = existingProfile ?? {
-    id: profileId,
-    name: name.trim(),
-    region: 'Việt Nam',
-    language: 'vi',
-    currency: 'VND',
-    calorieGoal: 1650,
-    proteinGoal: 90,
-    carbsGoal: 210,
-    fatGoal: 58,
-    allergens: [],
-    dietary: [],
-  }
-
-  await saveProfile(profile)
-  await saveSelectedProfileId(profile.id)
-  const identity: IdentityRecord = { profileId: profile.id, pinHash: await hashPin(pin) }
-  window.localStorage.setItem(IDENTITY_KEY, JSON.stringify(identity))
-  await setAppLocked(false)
-  return identity
-}
-
-export async function verifyIdentity(pin: string): Promise<boolean> {
   const identity = await getIdentity()
-  return Boolean(identity && identity.pinHash === await hashPin(pin))
-}
-
-export async function clearIdentity(): Promise<void> {
-  if (typeof window !== 'undefined') {
-    window.localStorage.removeItem(IDENTITY_KEY)
-    window.localStorage.removeItem(LOCKED_KEY)
+  if (identity) {
+    const profile = await db.get('profiles', identity.profileId)
+    return profile ? [profile] : []
   }
-}
-
-export async function getMealsForProfile(profileId: string): Promise<MealEntry[]> {
-  const db = await dbPromise
-  if (firebaseEnabled && firebaseAuth?.currentUser) {
-    try {
-      const cloudMeals = await getCloudMeals(firebaseAuth.currentUser.uid)
-      const localMeals = await getLocalMeals(db, profileId)
-      const mealsById = new Map([...localMeals, ...cloudMeals].map((meal) => [meal.id, meal]))
-      return [...mealsById.values()].sort((a, b) => b.timestamp.localeCompare(a.timestamp))
-    } catch {
-      return getLocalMeals(db, profileId)
-    }
-  }
-  return getLocalMeals(db, profileId)
-}
-
-export async function saveMeal(entry: MealEntry): Promise<void> {
-  const db = await dbPromise
-  await db.put('meals', entry)
-  if (firebaseEnabled && firebaseAuth?.currentUser) {
-    try {
-      await saveCloudMeal(firebaseAuth.currentUser.uid, entry)
-    } catch {
-      await queueSync({ id: `meal:${entry.id}`, kind: 'meal', payload: entry })
-    }
-  }
-}
-
-async function getLocalMeals(db: Awaited<typeof dbPromise>, profileId: string): Promise<MealEntry[]> {
-  const index = db.transaction('meals', 'readonly').objectStore('meals').index('by-profile')
-  const result = await index.getAll(profileId)
-  return result.sort((a, b) => b.timestamp.localeCompare(a.timestamp))
-}
-
-async function queueSync(item: Omit<SyncQueueItem, 'attempts' | 'updatedAt'>): Promise<void> {
-  const db = await dbPromise
-  const previous = await db.get('syncQueue', item.id)
-  await db.put('syncQueue', {
-    ...item,
-    attempts: previous?.attempts ?? 0,
-    updatedAt: new Date().toISOString(),
-  })
-}
-
-let syncInProgress = false
-
-export async function flushPendingSync(): Promise<void> {
-  if (!firebaseEnabled || !firebaseAuth?.currentUser || syncInProgress) return
-
-  syncInProgress = true
-  try {
-    const db = await dbPromise
-    const pending = await db.getAll('syncQueue')
-    for (const item of pending) {
-      try {
-        if (item.kind === 'profile') {
-          await saveCloudProfile(firebaseAuth.currentUser.uid, item.payload as Profile)
-        } else {
-          await saveCloudMeal(firebaseAuth.currentUser.uid, item.payload as MealEntry)
-        }
-        await db.delete('syncQueue', item.id)
-      } catch {
-        await db.put('syncQueue', { ...item, attempts: item.attempts + 1, updatedAt: new Date().toISOString() })
-        break
-      }
-    }
-  } finally {
-    syncInProgress = false
-  }
+  return (await db.getAll('profiles')).filter((profile) => profile.id !== 'linh' && profile.id !== 'an')
 }
 
 export async function getProfile(profileId: string): Promise<Profile | undefined> {
+  return (await dbPromise).get('profiles', profileId)
+}
+
+export async function getMealsForProfile(profileId: string): Promise<MealEntry[]> {
+  return (await (await dbPromise).getAllFromIndex('mealRecords', 'by-profile', profileId))
+    .filter((meal) => !meal.deleted).sort((a, b) => b.timestamp.localeCompare(a.timestamp))
+}
+
+export async function saveProfile(profile: Profile): Promise<void> {
+  validateProfile(profile)
+  const identity = await getIdentity()
   const db = await dbPromise
-  return db.get('profiles', profileId)
+  const tx = db.transaction(['profiles', 'syncQueue'], 'readwrite')
+  await tx.objectStore('profiles').put(profile)
+  if (firebaseEnabled && identity?.cloud && identity.profileId === profile.id) {
+    await tx.objectStore('syncQueue').put({ id: `profile:${profile.id}`, kind: 'profile', payload: profile,
+      attempts: 0, updatedAt: new Date().toISOString(), revision: crypto.randomUUID() })
+  }
+  await tx.done
+  notifyDataChanges()
+  scheduleSync()
+}
+
+async function writeMeal(entry: MealRecord): Promise<void> {
+  validateMeal(entry)
+  const identity = await getIdentity()
+  const db = await dbPromise
+  const tx = db.transaction(['mealRecords', 'syncQueue'], 'readwrite')
+  await tx.objectStore('mealRecords').put(entry)
+  if (firebaseEnabled && identity?.cloud && identity.profileId === entry.profileId) {
+    const item: SyncQueueItem = { id: mealQueueId(entry), kind: 'meal', payload: entry,
+      attempts: 0, updatedAt: new Date().toISOString(), revision: crypto.randomUUID() }
+    await tx.objectStore('syncQueue').put(item)
+  }
+  await tx.done
+  notifyDataChanges()
+  scheduleSync()
+}
+
+export async function saveMeal(entry: MealEntry): Promise<void> {
+  const { deleted: _deleted, ...restored } = validateMeal(entry)
+  await writeMeal(restored)
+}
+
+export async function deleteMeal(entry: MealEntry): Promise<void> {
+  await writeMeal({ ...entry, deleted: true })
+}
+
+export async function confirmCloudIdentity(profileId: string): Promise<IdentityRecord | null> {
+  const identity = await getIdentity()
+  if (!identity || identity.profileId !== profileId || identity.cloud !== undefined) return identity
+  if (await boundedCloud(cloudUserId()) !== profileId) return identity
+  const current = await getIdentity()
+  if (!current || current.profileId !== profileId || current.cloud !== undefined) return current
+  const confirmed: IdentityRecord = { ...current, cloud: true }
+  persistIdentity(confirmed)
+  notifyDataChanges()
+  scheduleSync()
+  return confirmed
+}
+
+export type IdentitySetup = {
+  readonly name: string
+  readonly pin: string
+  readonly profileId?: string
+  readonly existingProfile?: Profile
+  readonly cloud?: boolean
+}
+
+export async function setupIdentity({ name, pin, profileId = crypto.randomUUID(), existingProfile, cloud = false }: IdentitySetup): Promise<IdentityRecord> {
+  const db = await dbPromise
+  const queued = await db.get('syncQueue', `profile:${profileId}`)
+  const profile = validateProfile((queued?.kind === 'profile' ? queued.payload : undefined) ?? existingProfile ?? await db.get('profiles', profileId) ?? {
+    id: profileId, name: name.trim(), region: 'Việt Nam', language: 'vi', currency: 'VND',
+    calorieGoal: 1650, proteinGoal: 90, carbsGoal: 210, fatGoal: 58, allergens: [], dietary: [],
+  })
+  const identity: IdentityRecord = { profileId: profile.id, pinHash: await hashPin(pin), cloud: cloud && await boundedCloud(cloudUserId()) === profile.id }
+  const previous = ['mam-identity-v1', 'mam-selected-profile-id', 'mam-app-locked'].map((key) => ({ key, value: localStorage.getItem(key) }))
+  try {
+    persistIdentity(identity)
+    await saveProfile(profile)
+    await saveSelectedProfileId(profile.id)
+    await setAppLocked(false)
+  } catch (error) {
+    if (localStorage.getItem('mam-identity-v1') === JSON.stringify(identity)) {
+      for (const { key, value } of previous) {
+        if (value === null) localStorage.removeItem(key)
+        else localStorage.setItem(key, value)
+      }
+    }
+    throw error
+  }
+  return identity
 }

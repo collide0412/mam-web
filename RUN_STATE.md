@@ -1,50 +1,32 @@
-# Execution state
+# Resume point — 2026-10-26
 
-## Goal status
-COMPLETED
+## Active goal
 
-## Current phase
-FINAL_VALIDATION
+Overhaul Măm into an accessible, mobile-first, static/local-first PWA backed by the existing Firebase project. The user authorized rebuilding UI/backend, then explicitly withdrew SMS to avoid a paid Firebase plan. Authentication scope is now Email/Password and Google only.
 
-## Current subtask
-Finalized the static offline-first PWA and validated the complete app stack.
+Status: READY_TO_PUBLISH. The user requested upload to GitHub after local OAuth confusion. Commit/push to main and verify the Pages workflow, then test Google on the published HTTPS URL. Goal is active; no billing or Phone activation blocker remains in scope.
 
-## Last completed action
-Completed the remaining profile, together-mode, accessibility, and GitHub Pages validation work and confirmed the project passes lint, typecheck, tests, build, and smoke checks.
+## Current implementation and checks
 
-## Last successful command
-cd c:/Users/dangc/mam-web; & "C:\Users\dangc\AppData\Local\Temp\node-v22\node-v22.12.0-win-x64\node.exe" "C:\Users\dangc\AppData\Local\Temp\node-v22\node-v22.12.0-win-x64\node_modules\npm\bin\npm-cli.js" run lint; & "C:\Users\dangc\AppData\Local\Temp\node-v22\node-v22.12.0-win-x64\node.exe" "C:\Users\dangc\AppData\Local\Temp\node-v22\node-v22.12.0-win-x64\node_modules\npm\bin\npm-cli.js" run typecheck; & "C:\Users\dangc\AppData\Local\Temp\node-v22\node-v22.12.0-win-x64\node.exe" "C:\Users\dangc\AppData\Local\Temp\node-v22\node-v22.12.0-win-x64\node_modules\npm\bin\npm-cli.js" test -- --run; & "C:\Users\dangc\AppData\Local\Temp\node-v22\node-v22.12.0-win-x64\node.exe" "C:\Users\dangc\AppData\Local\Temp\node-v22\node-v22.12.0-win-x64\node_modules\npm\bin\npm-cli.js" run build; & "C:\Users\dangc\AppData\Local\Temp\node-v22\node-v22.12.0-win-x64\node.exe" "C:\Users\dangc\AppData\Local\Temp\node-v22\node-v22.12.0-win-x64\node_modules\npm\bin\npm-cli.js" run smoke:pages
+- Four-route light/dark UI; meal search, manual input, fractional portions, local dates, notes, edit/delete/undo, goals, optional PIN, JSON export and explicit guest import.
+- IndexedDB v3 migration, owner-scoped records, atomic local/outbox writes, durable tombstones, revision-safe acknowledgement, account-change guards and lazy Firebase.
+- Firebase project mam-app-877da, web app 1:837818293257:web:1d1c79247454655f6dacd8. Email/Password and Google enabled. User briefly enabled Phone, then asked to omit SMS; Phone is now confirmed Disabled in Console. Spark retained; no SMS regions or test numbers were configured.
+- Removed PhoneSignIn, SMS SDK adapters, consent CSS, five obsolete Phone tests and the Phone smoke scenario. 49 tests pass; strict typecheck/build/Pages smoke pass. Lint exits 0 with the existing useJournal advisory. Auth/Firestore emulator smoke passes email, Google credentials, ownership/schema/boundary checks and delete/undo; emulator execution exited cleanly.
+- Firestore rules already deployed. SHA256 D7AFDB0F8340DB89E950130F1DD3C6E8F50E18DE8B1FA216797DB6F8F7BE1022.
+- Before SMS removal, all 24 main-route/theme/viewport states passed and an origin-unavailable PWA reload preserved data. The changed authentication screen was rechecked in dark mode at 320 and 1440 widths: local and email views have no horizontal overflow and no Phone button.
 
-## Root cause addressed
-The project initially lacked a supported Node runtime and required a more careful static app design for GitHub Pages, IndexedDB persistence, and offline PWA behavior. These constraints were resolved through a compatible Node 22 toolchain, static PWA setup, profile persistence logic, and final runtime smoke validation.
+## Google QA and publication
 
-## Exact next action
-Use the project as a polished, deployable local-first PWA and continue with any future product enhancements or release handoff work.
+The real Google chooser opened on localhost. User reported loading, then an unauthorized-domain error. DOM evidence places the domain error on 127.0.0.1:4179, while the localhost:4179 tab remained pending. Public Auth config fetched using the app's Web key confirms project number 837818293257 and authorized domains localhost, mam-app-877da.firebaseapp.com, mam-app-877da.web.app and collide0412.github.io. 127.0.0.1 is not authorized. Real Google OAuth success is not yet certified; use one published URL to eliminate test-tab confusion.
 
-## Open defects
-None at the current validated state.
+Repository origin is https://github.com/collide0412/mam-web.git. Local and remote main were both 10f62ab2a307c7cca44b82d74824a979d2ddd84a before publication. All required VITE_FIREBASE_* secret names exist, and Pages build_type is workflow at https://collide0412.github.io/mam-web/. No commit/push of the overhaul has occurred yet.
 
-## Visual defects
-None after the final mobile-first accessibility and flow polish pass.
+Next: commit the reviewed application changes and docs, push main, poll the specific deployment run, open the new live app, ask the user to complete Google account selection if needed, verify cloud session/sync, then record final deployment evidence and close the goal only when the revised scope is proven.
 
-## Accessibility defects
-None after focus-visible and reduced-motion improvements.
+## Running surfaces and tools
 
-## Deployment defects
-None; GitHub Pages configuration and smoke checks passed.
+Node: C:/Users/dangc/AppData/Local/mam-toolchain/node-v24.22.1-win-x64. Java: C:/Users/dangc/AppData/Local/mam-toolchain/jdk-21.0.12.1+1-jre/bin.
 
-## Tests completed
-- Lint pass
-- Typecheck pass
-- Vitest pass (4/4 tests)
-- Production build pass
-- GitHub Pages smoke pass
+Preview 4178 remains live for the original sample tab; fresh no-SMS preview 4179 is exec session 32079. Both serve dist. Temporary QA tabs were closed and viewport overrides reset. Console user tab 1434513996 remains open; the project overview QA tab was closed. Original public app tab 1434513922 and sample preview tab 1434514028 remain. Emulators are stopped.
 
-## Completion gates satisfied
-- Functional flows
-- Mobile-first UX quality
-- Offline and persistence validation
-- Search and recommendation quality
-- Profile isolation and Together mode
-- Accessibility and motion safety
-- Production build and GitHub Pages validation
+Evidence is under ignored .omo/evidence/. The two earlier implementation agents stopped at a usage limit; root completed integration. Do not restart workers or re-run finished checks without a changed requirement, failure or unresolved risk. No memory files were updated.

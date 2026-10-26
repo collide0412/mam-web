@@ -14,7 +14,9 @@ Validation: 49 tests pass before and after cleanup; strict TypeScript build, lin
 
 ## Operations
 
-Authentication follow-up: the current checkout is `C:/Users/dangc/projects/mam-web` (the former root checkout was absent). Google SDK/Auth readiness is prepared before enabling sign-in, and the click has no application-level await before invoking the popup SDK. Forgot-password now sends Firebase reset email with neutral success text, pending/error/retry handling, and no password/PIN prerequisite. 54 tests, strict builds and Pages smoke pass; lint has the existing advisory. The popup ordering test fails when the old await is restored. Real browser/device and reset-email/link verification remain unperformed: BrowserSkill daemon startup failed. Commit/publish this bounded authentication change; do not claim the reported browser issue fully reproduced or resolved on the user's device.
+Current checkout: `C:/Users/dangc/projects/mam-web` (the former root checkout was absent). Forgot-password was published as `eea23a0`; its Google preloading change was insufficient on the user's Safari iPhone. Do not treat the earlier desktop/cloud login as iPhone verification.
+
+Safari follow-up now reserves the native window synchronously during the click, then hands it only to the exact configured Firebase Google popup handler. The temporary window.open adapter restores/deactivates on handoff/failure and leaves unrelated openers intact. Single-flight and owned-window cleanup are covered; installed iOS PWA behavior stays on the SDK's original anchor path. 64 tests, strict Firebase-enabled demo build and Pages smoke pass; lint has the existing advisory. Independent code review approved. The former implementation fails the gesture-expiry regression with auth/popup-blocked. Commit/publish this change and verify CI; actual iPhone Safari roundtrip still requires the user's device. Do not claim device success before confirmation. See QA_REPORT.md for evidence and limits.
 
 - Repository: https://github.com/collide0412/mam-web.git
 - Product: https://collide0412.github.io/mam-web/

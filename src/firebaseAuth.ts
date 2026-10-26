@@ -39,6 +39,16 @@ export async function logout(): Promise<void> {
 }
 
 let googleServices: FirebaseServices | undefined
+let googlePopupPending = false
+
+class GooglePopupError extends Error {
+  readonly code: 'auth/popup-blocked' | 'auth/popup-closed-by-user' | 'auth/cancelled-popup-request'
+  constructor(code: GooglePopupError['code']) {
+    super(code)
+    this.name = 'GooglePopupError'
+    this.code = code
+  }
+}
 
 export async function prepareGoogleSignIn(): Promise<void> {
   const services = await getFirebaseServices()
@@ -49,8 +59,54 @@ export async function prepareGoogleSignIn(): Promise<void> {
 export function signInWithGoogle(): Promise<User> {
   if (!googleServices) throw new Error('Google chưa sẵn sàng. Hãy chờ tải xong rồi thử lại.')
   const { auth, authSdk } = googleServices
-  // Loading the SDK inside the click can expire the browser's user activation.
-  return authSdk.signInWithPopup(auth, new authSdk.GoogleAuthProvider()).then((result) => result.user)
+  const provider = new authSdk.GoogleAuthProvider()
+  // Installed iOS PWAs use the SDK's anchor-based path, not window.open.
+  if ('standalone' in navigator && navigator.standalone === true) {
+    return authSdk.signInWithPopup(auth, provider).then((result) => result.user)
+  }
+  if (googlePopupPending) return Promise.reject(new GooglePopupError('auth/cancelled-popup-request'))
+  const emulator = auth.emulatorConfig
+  const handler = emulator
+    ? new URL('/emulator/auth/handler', `${emulator.protocol}://${emulator.host}:${emulator.port}`)
+    : new URL(`https://${auth.config.authDomain}/__/auth/handler`)
+  const nativeOpen = window.open
+  // Safari needs a real window during the click, before the SDK's internal awaits.
+  const popup = nativeOpen.call(window, 'about:blank', '_blank', 'popup=yes,width=500,height=600')
+  if (!popup) return Promise.reject(new GooglePopupError('auth/popup-blocked'))
+  googlePopupPending = true
+
+  let reserved = true
+  const restoreOpen = () => {
+    reserved = false
+    if (window.open === routeGooglePopup) window.open = nativeOpen
+  }
+  const routeGooglePopup: typeof window.open = (url, target, features) => {
+    let destination: URL | undefined
+    try { destination = new URL(String(url ?? ''), window.location.href) }
+    catch (error: unknown) { if (!(error instanceof TypeError)) throw error }
+    if (reserved && destination?.origin === handler.origin && destination.pathname === handler.pathname
+      && destination.searchParams.get('providerId') === 'google.com'
+      && destination.searchParams.get('authType') === 'signInViaPopup') {
+      restoreOpen()
+      if (popup.closed) throw new GooglePopupError('auth/popup-closed-by-user')
+      popup.location.replace(destination.href)
+      return popup
+    }
+    return nativeOpen.call(window, url, target, features)
+  }
+  const release = () => {
+    restoreOpen()
+    googlePopupPending = false
+    try { popup.close() }
+    catch (error: unknown) { if (!(error instanceof DOMException)) throw error }
+  }
+  window.open = routeGooglePopup
+  try {
+    return authSdk.signInWithPopup(auth, provider).then((result) => result.user).finally(release)
+  } catch (error: unknown) {
+    release()
+    return Promise.reject(error)
+  }
 }
 
 export async function resetPassword(email: string): Promise<void> {

@@ -1,5 +1,13 @@
 # Măm overhaul verification — 2026-10-26
 
+## Safari iPhone follow-up — 2026-10-26
+
+The user reported popup-blocked again on Safari iPhone after the SDK-preloading release. That release did not establish a successful iPhone login. The installed Firebase SDK still awaits resolver initialization and URL preparation before its native window.open call.
+
+The follow-up reserves a blank window synchronously during the click and hands that handle to the SDK only for the configured Firebase origin, handler path, Google provider and popup operation. This uses a temporary, narrowly matched window.open adapter: native behavior is restored immediately on handoff or failure, unrelated windows are delegated, and only the owned window is closed. A single-flight guard prevents overlapping adapters. The SDK's existing anchor-based installed-iOS-PWA path is preserved unchanged. This adapter depends on the SDK's current handler contract and needs rechecking when the Firebase SDK is upgraded.
+
+The regression models gesture expiry before the SDK's delayed native open: the prior version rejects with auth/popup-blocked; the reservation version passes. Tests also cover rejected/synchronously thrown SDK calls, an already closed window, overlapping requests/retry, unrelated destinations, preservation of a later opener replacement, standalone mode and the emulator URL. All 64 tests, strict TypeScript/Firebase-enabled demo build and Pages smoke pass; lint has its existing advisory. Independent code review approved with no code blockers. This is modeled ordering and code evidence, not a real iPhone OAuth roundtrip; the user's Safari check remains pending. Production Auth providers, Firestore rules, hosting origin and local journal data are unchanged.
+
 ## Authentication follow-up — 2026-10-26
 
 Google preparation now loads the SDK and waits for Auth readiness before enabling its button. The click calls signInWithPopup without an application-level await first. Reintroducing the old await makes the synchronous-call regression fail (popup spy called zero times); restoring the change passes. This proves application ordering at the SDK boundary, not the user's browser popup policy or the SDK's internal iframe timing.
